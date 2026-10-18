@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="840" viewBox="0 0 1120 840" role="img" aria-labelledby="title desc">
-<title id="title">Nested Azure Local learning lab topology</title>
+<title id="title">Jumpstart LocalBox: nested Azure Local learning lab topology</title>
 <desc id="desc">One outer Azure virtual machine contains two nested Azure Local nodes, shared cluster storage, a management environment, a small AKS cluster, and an Ubuntu VM that can be live-migrated. Azure Arc provides a control path, not a general VPN.</desc>
 <style>
 :root{--cp-bg:#f7f4ef;--cp-surface:#ffffff;--cp-surface-soft:#f5f5f5;--cp-border:#919191;--cp-text:#242424;--cp-text-muted:#5c5c5c;--cp-accent:#b11f4b;--cp-accent-soft:#fcfbf8;}
@@ -13,7 +13,7 @@ text{font-family:"Segoe UI",Aptos,Calibri,sans-serif;fill:var(--cp-text);font-si
 <text x="32" y="71" class="small">Topology illustration based on the recorded lab, not a Microsoft reference architecture or portal screenshot.</text>
 <rect x="32" y="100" width="680" height="90" rx="10" class="box"/>
 <text x="56" y="132" class="heading">Azure control plane</text>
-<text x="56" y="160">Azure Portal / ARM / Azure Arc / resource identities</text>
+<text x="56" y="160">Azure portal / ARM / Azure Arc / resource identities</text>
 <rect x="744" y="100" width="344" height="90" rx="10" class="box"/>
 <text x="768" y="132" class="heading">Your management computer</text>
 <text x="768" y="160" class="small">Private Arc SSH and cluster-connect tunnels</text>
@@ -29,7 +29,7 @@ text{font-family:"Segoe UI",Aptos,Calibri,sans-serif;fill:var(--cp-text);font-si
 <rect x="400" y="312" width="315" height="170" rx="10" class="box"/>
 <text x="422" y="345" class="heading">AzLHOST2</text>
 <text x="422" y="374">Azure Local node / Hyper-V</text>
-<text x="422" y="402" class="small">Destination for a planned Live Migration</text>
+<text x="422" y="402" class="small">Destination for a planned live migration</text>
 <text x="422" y="432" class="small">No permanent cluster master</text>
 <path d="M 372 389 L 396 389" class="line"/>
 <rect x="748" y="312" width="315" height="170" rx="10" class="soft"/>
@@ -41,14 +41,14 @@ text{font-family:"Segoe UI",Aptos,Calibri,sans-serif;fill:var(--cp-text);font-si
 <text x="78" y="540" class="heading">Storage Spaces Direct / Cluster Shared Volumes</text>
 <text x="78" y="565" class="small">The final VM configuration and disks remain on cluster storage during a same-cluster move.</text>
 <rect x="748" y="510" width="315" height="72" rx="10" class="soft"/>
-<text x="770" y="540" class="heading">Arc Resource Bridge</text>
+<text x="770" y="540" class="heading">Azure Arc resource bridge</text>
 <text x="770" y="565" class="small">Custom location / VM and AKS operators</text>
 <path d="M 906 190 L 906 224" class="line"/>
 <rect x="56" y="614" width="495" height="96" rx="10" class="box"/>
-<text x="78" y="646" class="heading">AKS Local + NGINX</text>
+<text x="78" y="646" class="heading">AKS on Azure Local + NGINX</text>
 <text x="78" y="674" class="small">One Linux worker + one required control plane, separate from the two Azure Local nodes.</text>
 <rect x="575" y="614" width="488" height="96" rx="10" class="box"/>
-<text x="597" y="646" class="heading">Ubuntu Arc VM + web observer</text>
+<text x="597" y="646" class="heading">Ubuntu VM + web observer</text>
 <text x="597" y="674" class="small">Guest identity stays separate from the externally observed cluster Owner Node.</text>
 <text x="32" y="777" class="accent">Important: stopping the outer LocalBox VM removes both simulated nodes and management services.</text>
 <text x="32" y="807" class="small">A physical production deployment uses independent servers and its own validated network, storage, security and availability design.</text>

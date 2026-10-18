@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Start here: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
-<title>Start here | Azure Local Lab</title>
+<title>Start here | Azure Local and LocalBox Guide</title>
 <link rel="icon" href="data:,">
 <script>(() => {
   const param = new URLSearchParams(window.location.search).get("scoutTheme");
@@ -16,17 +16,27 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / LOCALBOX FIELD GUIDE</a><span>L400 deployment and operations</span></header>
 <div class="layout">
-<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local and LocalBox overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local with LocalBox</a><a href="04-aks.html"><span>04</span> Deploy AKS on Azure Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Practice VM live migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="01-overview.html#terminology">Terminology and acronyms</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
 <main id="main">
-<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Start here</div>
-<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
-<h1>Azure Local, from deployment to a live-migration lab</h1>
-<p class="lead">An L400 six-chapter engineering walkthrough: architecture and landing-zone boundaries, validated deployment gates, AKS and NGINX, an Arc-managed Ubuntu VM, and your planned migration with observable success and recovery criteria.</p>
-<div class="note"><strong>Every stage expanded:</strong> execution context, identity/permissions, preflight inputs, control/data flows, operational acceptance, failure diagnosis and recovery boundaries. <a href="architecture.html">Open the six-view editable Azure-icon architecture and CAF control mapping</a>. Target landing-zone controls are explicitly separated from the recorded lab.</div>
+<div class="breadcrumbs"><a href="index.html">Azure Local and LocalBox Guide</a> / Start here</div>
+<div class="edition">L400 edition · Azure landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>Azure Local with Jumpstart LocalBox</h1>
+<p class="lead">An L400 six-chapter engineering walkthrough: architecture and landing-zone boundaries, validated deployment gates, AKS on Azure Local and NGINX, an Ubuntu VM on Azure Local, and your planned migration with observable success and recovery criteria.</p>
+<h2 id="what-is-localbox">What is Jumpstart LocalBox?</h2>
+<p><strong>Jumpstart LocalBox</strong> is an <strong>Azure Arc Jumpstart</strong> sandbox for learning and demonstrating Azure Local. It deploys an Azure VM that hosts a nested Azure Local environment, so you can explore the platform without procuring physical Azure Local servers. <strong>Azure Local is the infrastructure product; LocalBox is the lab environment used to explore it.</strong> “Azure LocalBox” is not the product name used in this guide. See the <a href="https://jumpstart.azure.com/azure_jumpstart_localbox/getting_started">official LocalBox overview</a>.</p>
+<table><caption>Five names, five different responsibilities</caption><thead><tr><th>Name used in this guide</th><th>What it means</th></tr></thead><tbody>
+<tr><td>Azure Local</td><td>The infrastructure platform that runs the local VMs and Kubernetes workloads.</td></tr>
+<tr><td>Jumpstart LocalBox; then LocalBox</td><td>The educational sandbox. This recorded deployment has two nested Azure Local nodes inside one outer Azure VM.</td></tr>
+<tr><td><code>LocalBox-Client</code></td><td>The recorded outer Azure VM's resource name, not a separate product or an Azure Local cluster node.</td></tr>
+<tr><td>Azure Arc</td><td>The Azure management capabilities connecting the local infrastructure and supported workload resources to Azure; not a general-purpose VPN.</td></tr>
+<tr><td>Azure landing zones</td><td>The enterprise organization and governance design model, not software installed by LocalBox. This guide maps a proposed target separately from the recorded lab.</td></tr>
+</tbody></table>
+<p>Use LocalBox for training, demonstrations, and disposable proof-of-concept exercises. It runs actual Azure Local software in nested VMs, but the two nodes share the outer VM's failure domain. It is not a production deployment or proof of physical high availability. <a href="01-overview.html#localbox-overview">Read how the host, nodes, management services, VMs, and AKS fit together</a>, or use the <a href="01-overview.html#terminology">terminology and acronym reference</a>.</p>
+<div class="note"><strong>Every stage expanded:</strong> execution context, identity/permissions, preflight inputs, control/data flows, operational acceptance, failure diagnosis and recovery boundaries. <a href="architecture.html">Open the six-view editable Azure-icon architecture and Microsoft Cloud Adoption Framework (CAF) control mapping</a>. Target landing-zone controls are explicitly separated from the recorded lab.</div>
 <div class="warning"><strong>Lab, not production.</strong> Two nested Azure Local nodes share one outer Azure VM. They do not provide physical fault isolation. The single-worker AKS example is intentionally small, not a highly available application platform.</div>
-<div class="chapter-grid"><a class="chapter-card" href="01-overview.html"><span class="chapter-number">01</span><h2>Azure Local overview</h2><p>Architecture and the control, management, and workload planes.</p></a><a class="chapter-card" href="02-scenarios.html"><span class="chapter-number">02</span><h2>Choose the deployment scenario</h2><p>Separate a nested learning lab from a physical production cluster.</p></a><a class="chapter-card" href="03-deploy.html"><span class="chapter-number">03</span><h2>Deploy Azure Local</h2><p>Prerequisites, LocalBox deployment, Arc onboarding, validation, and readiness gates.</p></a><a class="chapter-card" href="04-aks.html"><span class="chapter-number">04</span><h2>Deploy AKS Local and NGINX</h2><p>One worker, the mandatory control plane, complete YAML, and a private CLI tunnel.</p></a><a class="chapter-card" href="05-vm.html"><span class="chapter-number">05</span><h2>Deploy Ubuntu and a web application</h2><p>Prepare the image, create an Arc-managed VM, and install an NGINX example.</p></a><a class="chapter-card" href="06-migrate.html"><span class="chapter-number">06</span><h2>Simulate Live Migration</h2><p>Find the real owner, connect to the cluster, and manually move the running VM.</p></a></div>
+<div class="chapter-grid"><a class="chapter-card" href="01-overview.html"><span class="chapter-number">01</span><h2>Azure Local and LocalBox overview</h2><p>Understand the product, the Jumpstart LocalBox sandbox, and the management and workload layers.</p></a><a class="chapter-card" href="02-scenarios.html"><span class="chapter-number">02</span><h2>Choose the deployment scenario</h2><p>Separate a nested learning lab from a physical production cluster.</p></a><a class="chapter-card" href="03-deploy.html"><span class="chapter-number">03</span><h2>Deploy Azure Local with LocalBox</h2><p>Prerequisites, Jumpstart LocalBox deployment, Azure Arc onboarding, validation, and readiness gates.</p></a><a class="chapter-card" href="04-aks.html"><span class="chapter-number">04</span><h2>Deploy AKS on Azure Local and NGINX</h2><p>One worker, the mandatory control plane, complete YAML, and a private CLI tunnel.</p></a><a class="chapter-card" href="05-vm.html"><span class="chapter-number">05</span><h2>Deploy Ubuntu and a web application</h2><p>Prepare the image, create an Azure Local VM, and install an NGINX example.</p></a><a class="chapter-card" href="06-migrate.html"><span class="chapter-number">06</span><h2>Practice VM live migration</h2><p>Find the current owner, connect to the cluster, and manually move the running VM.</p></a></div>
 <h2>What this edition retains and masks</h2>
 <p>Account, subscription, tenant, credentials, and billing sections remain in the guide. Their actual values are masked, not silently removed. No masked value is stored in hidden HTML, comments, URLs, metadata, downloads, or original image pixels.</p>
 <table><thead><tr><th>Field retained</th><th>Public value</th><th>When following the tutorial</th></tr></thead><tbody>
@@ -40,14 +50,14 @@
 <h2>Recorded outcomes and honest boundaries</h2>
 <ul><li>Recorded Azure Local deployment: two connected Arc nodes and completed validation/deployment.</li>
 <li>Recorded AKS workload: one Linux worker plus one mandatory control plane; one NGINX replica Ready and private HTTP access.</li>
-<li>Recorded VM: an Arc-managed Ubuntu guest with an identity web application and fresh cluster-owner telemetry.</li>
-<li>The observed Ubuntu identity application was Python-based. Chapter5 adds a clearly labeled <em>new reproducible NGINX example</em>; it is not presented as software already installed in the captured lab.</li>
+<li>Recorded VM: an Ubuntu guest on Azure Local with an identity web application and fresh cluster-owner telemetry.</li>
+<li>The observed Ubuntu identity application was Python-based. Chapter 5 adds a clearly labeled <em>new reproducible NGINX example</em>; it is not presented as software already installed in the captured lab.</li>
 <li>The migration screenshot shows the menu before destination selection. A completed manual migration and an uninterrupted application session have not been demonstrated by that image.</li></ul>
 <div class="note"><strong>How to use the examples:</strong> private values are entered at runtime. Example RFC1918 IP addresses, node names, and generic resource names are instructional and must be reconciled with your own network. Commands are not an instruction to rerun an existing deployment.</div>
 <p><a class="button" href="01-overview.html">Begin with the architecture</a> <a class="button secondary" href="downloads.html">Review code and privacy policy</a></p>
-<div class="pager"><a class="button" href="01-overview.html">Next: Azure Local overview</a></div>
+<div class="pager"><a class="button" href="01-overview.html">Next: Azure Local and LocalBox overview</a></div>
 <footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
-<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual live migration or zero downtime.</p>
 <p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
 </main></div>
 </body></html>

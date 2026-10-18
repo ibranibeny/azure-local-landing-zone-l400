@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Deploy Azure Local: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
-<title>Deploy Azure Local | Azure Local Lab</title>
+<meta name="description" content="Deploy Azure Local with LocalBox: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Deploy Azure Local with LocalBox | Azure Local and LocalBox Guide</title>
 <link rel="icon" href="data:,">
 <script>(() => {
   const param = new URLSearchParams(window.location.search).get("scoutTheme");
@@ -16,14 +16,14 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / LOCALBOX FIELD GUIDE</a><span>L400 deployment and operations</span></header>
 <div class="layout">
-<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html" aria-current="page"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local and LocalBox overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html" aria-current="page"><span>03</span> Deploy Azure Local with LocalBox</a><a href="04-aks.html"><span>04</span> Deploy AKS on Azure Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Practice VM live migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="01-overview.html#terminology">Terminology and acronyms</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
 <main id="main">
-<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Deploy Azure Local</div>
-<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
-<h1>3. Deploy Azure Local</h1>
-<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Deploy Azure Local; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Deploy Azure Local" src="assets/architecture-03.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="deploy">3. Deploy Azure Local: separate production from LocalBox</h2>
+<div class="breadcrumbs"><a href="index.html">Azure Local and LocalBox Guide</a> / Deploy Azure Local with LocalBox</div>
+<div class="edition">L400 edition · Azure landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>3. Deploy Azure Local with LocalBox</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Deploy Azure Local with LocalBox; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Deploy Azure Local with LocalBox" src="assets/architecture-03.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="deploy">3. Deploy Azure Local: separate production from LocalBox</h2>
 <div class="warning"><p><strong>Read the media stop condition before creating resources.</strong> The recorded lab encountered HTTP 409 while obtaining the prepared 2608 VHDX. Its later ISO-to-Generation-2 recovery was custom work, not an unmodified, repeatable LocalBox deployment. A public Git commit does not guarantee that publisher-hosted images remain downloadable.</p></div>
 <h3>Path A — physical deployment, a separate scope</h3>
 <ol class="steps">
@@ -105,7 +105,7 @@ foreach ($uri in $media) {
     throw 'Publisher media preflight failed. Stop; follow the media boundary below.'
   }
 }</code></pre>
-<div class="warning"><p><strong>Media boundary:</strong> on 409, denied public access, missing media, or a checksum mismatch, stop. Do not bypass access controls, substitute an unofficial image, or rerun storage initialization. Use <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/download-23h2-software?view=azloc-2609">the official ISO download</a> and <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-install-os?view=azloc-2609">manual OS installation guidance</a> only after the user approves applicable terms. Preparing a compatible nested Gen2 image and recovery plan is separate engineering, not a guaranteed fallback command here. A newer ISO may also require a different deployment workflow.</p></div>
+<div class="warning"><p><strong>Media boundary:</strong> on 409, denied public access, missing media, or a checksum mismatch, stop. Do not bypass access controls, substitute an unofficial image, or rerun storage initialization. Use <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/download-23h2-software?view=azloc-2609">the official ISO download</a> and <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-install-os?view=azloc-2609">manual OS installation guidance</a> only after the user approves applicable terms. Preparing a compatible nested Generation 2 image and recovery plan is separate engineering, not a guaranteed fallback command here. A newer ISO may also require a different deployment workflow.</p></div>
 </li>
 <li>
 <h3>Build, validate, preview, then create the foundation</h3>
@@ -191,18 +191,18 @@ Invoke-Command -VMName 'AzLHOST1' -Credential $nodeCredential -ScriptBlock {
 <thead><tr><th scope="col">Statement</th><th scope="col">Evidence boundary</th></tr></thead>
 <tbody>
 <tr><td>Recorded lab outcomes</td><td>Deployment evidence from 16 October; update Installed, both nodes Up, and Ubuntu on AzLHOST1 recorded 17 October 2026. These are not live 18 October health guarantees.</td></tr>
-<tr><td>Unmodified reproduction</td><td>Not established: prepared-image access failed and recovery required custom ISO/Gen2 preparation.</td></tr>
+<tr><td>Unmodified reproduction</td><td>Not established: prepared-image access failed and recovery required custom ISO/Generation 2 preparation.</td></tr>
 <tr><td>Migration</td><td>Instructions and target readiness do not establish that a manual VM migration completed.</td></tr>
 </tbody>
 </table>
 <h3>3.1 Execute deployment as a controlled platform change</h3>
-<p><strong>Inputs and owners:</strong> require chapter2's accepted address/capacity plan, approved AD OU/deployment account, supported release/media provenance, endpoint allowlist, reserved infrastructure pool, and a recovery contact independent of the new cluster. The AD-based LocalBox flow is the path actually described; do not mix local-identity/Key Vault instructions into its domain configuration. The platform owner approves the change, identity/network owners attest dependencies, and an authorized Azure operator supplies the correct tenant/subscription context. Directory lookup, Azure resource writes, role assignment, local administrative execution, and AD delegation are separate privileges; neither Entra tenant administration nor Domain Admin is a blanket prerequisite to grant.</p>
+<p><strong>Inputs and owners:</strong> require chapter 2's accepted address/capacity plan, approved AD OU/deployment account, supported release/media provenance, endpoint allowlist, reserved infrastructure pool, and a recovery contact independent of the new cluster. The AD-based LocalBox flow is the path actually described; do not mix local-identity/Key Vault instructions into its domain configuration. The platform owner approves the change, identity/network owners attest dependencies, and an authorized Azure operator supplies the correct tenant/subscription context. Directory lookup, Azure resource writes, role assignment, local administrative execution, and AD delegation are separate privileges; neither Microsoft Entra ID tenant administration nor Domain Admin is a blanket prerequisite to grant.</p>
 <p>Map <strong>resource organization</strong> to the proposed <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/">ALZ Local</a> Azure Local Clusters subscription; <strong>identity</strong> to scoped deployment and local cluster rights; <strong>connectivity</strong> to node/bridge endpoint tests; <strong>security/governance</strong> to compatible policies and protected credentials; <strong>management</strong> to readiness/update/recovery; <strong>automation</strong> to source pinning and gated replay; and <strong>tenant/billing</strong> to the approved disposable scope. The <a href="architecture.html">architecture target</a> is not implemented by this lab's one resource group. Central Security, Management, Identity and Connectivity subscriptions remain proposed shared services, not deployment outputs.</p>
 <table>
 <caption>Do not collapse these execution contexts or completion signals</caption>
 <thead><tr><th>Context and action</th><th>Output / success gate</th><th>Failure and safe response</th></tr></thead>
 <tbody>
-<tr><td>Management workstation: template compilation, ARM validation and what-if over HTTPS443.</td><td>Reviewed template, providers, scope, proposed changes, and no unexpected privilege/network expansion.</td><td>Policy/authorization/region errors: fix the approved input; template success does not test node networking.</td></tr>
+<tr><td>Management workstation: template compilation, ARM validation and what-if over HTTPS 443.</td><td>Reviewed template, providers, scope, proposed changes, and no unexpected privilege/network expansion.</td><td>Policy/authorization/region errors: fix the approved input; template success does not test node networking.</td></tr>
 <tr><td>Outer Windows guest: first-logon nested bootstrap with local administrator rights.</td><td>Expected nested machines and logs, no unresolved media/bootstrap error, Arc onboarding complete.</td><td>409 or failed storage preparation: preserve first error and halt; do not rerun destructive initialization.</td></tr>
 <tr><td>Azure deployment orchestration → nodes and bridge.</td><td>Real environment validation passes, then deployment steps complete and bridge/custom location are healthy.</td><td>Accepted/Running or client timeout: inspect the same operation/deployment; do not race it with another create.</td></tr>
 <tr><td>Authorized node/cluster console: read-only platform inspection.</td><td>Both nodes Up, CSVs Online, healthy pools/virtual disks, consistent network intents, available capacity.</td><td>Storage repair, failed intent, or node degradation: stop progressing to new workload deployment and resolve the platform condition with its owner. Do not automatically stop existing workloads.</td></tr>
@@ -220,9 +220,9 @@ Invoke-Command -VMName 'AzLHOST1' -Credential $nodeCredential -ScriptBlock {
 <li><a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deploy-powershell">Microsoft Learn: parameter objects and Azure PowerShell deployments</a>; <a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deploy-what-if">what-if</a>; <a href="https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az">LocalBox Bicep deployment</a>.</li>
 </ul>
 
-<div class="pager"><a class="button secondary" href="02-scenarios.html">Previous: Choose the deployment scenario</a><a class="button" href="04-aks.html">Next: Deploy AKS Local and NGINX</a></div>
+<div class="pager"><a class="button secondary" href="02-scenarios.html">Previous: Choose the deployment scenario</a><a class="button" href="04-aks.html">Next: Deploy AKS on Azure Local and NGINX</a></div>
 <footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
-<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual live migration or zero downtime.</p>
 <p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
 </main></div>
 </body></html>

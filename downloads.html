@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Code and masking policy: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
-<title>Code and masking policy | Azure Local Lab</title>
+<title>Code and masking policy | Azure Local and LocalBox Guide</title>
 <link rel="icon" href="data:,">
 <script>(() => {
   const param = new URLSearchParams(window.location.search).get("scoutTheme");
@@ -16,12 +16,12 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / LOCALBOX FIELD GUIDE</a><span>L400 deployment and operations</span></header>
 <div class="layout">
-<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local and LocalBox overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local with LocalBox</a><a href="04-aks.html"><span>04</span> Deploy AKS on Azure Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Practice VM live migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="01-overview.html#terminology">Terminology and acronyms</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
 <main id="main">
-<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Code and masking policy</div>
-<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<div class="breadcrumbs"><a href="index.html">Azure Local and LocalBox Guide</a> / Code and masking policy</div>
+<div class="edition">L400 edition · Azure landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
 <h1>Code, masking policy, and publication scope</h1>
 <p class="lead">These downloadable examples accompany the six chapters. They are not an unattended deployment of your Azure environment.</p>
 <h2>Downloadable code</h2><ul><li><a download="" href="code/install-vm-web.sh">install-vm-web.sh</a> — review locally before running; examples do not contain the original environment credentials.</li><li><a download="" href="code/nginx.yaml">nginx.yaml</a> — review locally before running; examples do not contain the original environment credentials.</li></ul>
@@ -33,14 +33,14 @@
 <tr><td>Password, private key and tokens</td><td><code>[MASKED: credential]</code>. The credential field remains explained, but no original value, encrypted cache, credential XML or private-key file is distributed.</td></tr>
 <tr><td>Billing</td><td><code>[MASKED: billing information]</code>. Cost-control steps and cost components are retained. Actual spend and entitlement values are not public.</td></tr>
 </tbody></table>
-<h2>Screenshot processing</h2><p>All21 original evidence images are represented by flattened redacted copies. Browser URLs, account/directory context, subscription fields, visible unique IDs, billing values and unrelated public addresses are covered with solid rectangles before new PNGs are encoded. Original images and local OCR data are outside the publication folder.</p>
+<h2>Screenshot processing</h2><p>All 21 original evidence images are represented by flattened redacted copies. Browser URLs, account/directory context, subscription fields, visible unique IDs, billing values and unrelated public addresses are covered with solid rectangles before new PNGs are encoded. Original images and local OCR data are outside the publication folder.</p>
 <h2>Cost and credential controls</h2><p>The retained resource types can continue charging: compute, disks, Bastion, NAT, monitoring and applicable Azure Local services. Alerts are not a hard spending cap. A tag such as CostControl=Ignore is an explicitly authorized internal-lab exception, not a general Azure requirement or a security control. The guide does not publish actual subscription billing data.</p>
 <p>The demonstration lab used a shared administrator password across some Windows targets. Do not reproduce shared administrator credentials in production; use separate, least-privilege, managed administrative identities. Azure portal identity, Windows local/domain sign-in and Ubuntu SSH authentication are different trust boundaries.</p>
 <h2>What is not claimed</h2><ul><li>The nested lab is not a production topology or an independent physical failure domain.</li><li>Examples are version-sensitive. Discover supported Kubernetes versions and VM sizes rather than assuming an old version remains available.</li><li>A menu screenshot is not a completed-migration result; one-second browser polling cannot prove absolute zero downtime.</li><li>The existing guide repository and its Pages homepage are not changed by this separate site's publication.</li></ul>
 <p>This public edition is prepared for the dedicated <code>ibranibeny/azure-local-landing-zone-l400</code> repository and <code>https://ibranibeny.github.io/azure-local-landing-zone-l400/</code>. Public screenshots are explicitly labeled as redacted evidence; architecture references are separately attributed.</p>
 <div class="pager"><a class="button secondary" href="evidence.html">Previous: Screenshot evidence</a></div>
 <footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
-<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual live migration or zero downtime.</p>
 <p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
 </main></div>
 </body></html>
