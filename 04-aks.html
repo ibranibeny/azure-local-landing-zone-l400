@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deploy AKS Local and NGINX: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Deploy AKS Local and NGINX | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html" aria-current="page"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Deploy AKS Local and NGINX</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>4. Deploy AKS Local and NGINX</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-04.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Deploy AKS Local and NGINX; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-04.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Deploy AKS Local and NGINX" src="assets/architecture-04.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="aks">4. Build a small AKS cluster on Azure Local</h2>
+<p>This creates <strong>AKS enabled by Azure Arc on the existing Azure Local instance</strong>, not a cloud-hosted AKS service. The infrastructure cluster still has two Azure Local nodes. The Kubernetes exercise adds separate virtual machines: one Linux worker and one mandatory control plane.</p>
+<table><thead><tr><th>Component</th><th>Recorded lab configuration</th><th>Boundary</th></tr></thead><tbody>
+<tr><td>Worker</td><td>1 × Standard_A2_v2; 2 vCPU / 4 GiB</td><td>One worker is not application-node high availability.</td></tr>
+<tr><td>Control plane</td><td>1 × Standard_K8S3_v1; 4 vCPU / 6 GiB</td><td>Required in addition to the worker; not a resilient control-plane design.</td></tr>
+<tr><td>Kubernetes</td><td>1.33.5 in the recorded deployment</td><td>Discover currently supported versions before a new deployment.</td></tr>
+<tr><td>Network</td><td>VLAN110; 10.10.0.0/24; node pool .101–.199; API .5</td><td>Example lab addresses, not values to copy into an unrelated network.</td></tr>
+<tr><td>Application</td><td>One NGINX replica; ClusterIP service</td><td>No public load balancer or internet ingress.</td></tr>
+</tbody></table>
+<div class="warning">Do not run this chapter against an existing cluster with the same name. First inspect its state. A generic portal “Prerequisites not met” card is not a diagnosis; verify the actual bridge, extensions, workload network, capacity, and authorization.</div>
+<h3>Admission contract: workload placement is not Kubernetes availability</h3>
+<p><strong>Inputs:</strong> chapter3's fresh platform readiness, supported version/role-specific sizes discovered on this custom location, nonoverlapping IP reservations, DNS/registry egress, an approved operator identity, and a reviewed manifest. The recorded Kubernetes1.33.5 is historical, not a permanently supported selection. Reserve addresses for the API, all nodes, expected upgrades/replacements, and any separately planned service VIPs; never allocate a VIP or API address from an already occupied node pool. Check pod/service CIDRs against host, VPN and routed networks before creation.</p>
+<p>The <a href="architecture.html">proposed ALZ target</a> places workload ownership under Local's Applications subscription and infrastructure under Azure Local Clusters; this example still uses the existing single lab subscription/resource group. Validate supported provider/custom-location and cross-subscription relationships before implementing that separation. Resource organization and Azure RBAC govern who may create or connect; Kubernetes authorization governs API objects; network policy and actual routing govern application traffic. Entra authentication does not grant AD cluster administration or guest SSH access.</p>
+<p>The platform team owns bridge/operator health, shared capacity and logical-network prerequisites; the Kubernetes operator owns cluster lifecycle and namespace authorization; the application owner owns probes, dependencies, image provenance and restore. Security/governance require scoped roles and Audit-first compatible policies, not an inherited blanket Deny that disables required Arc connectivity. Tenant/billing sets the authorized cost boundary; management sets upgrade/restore evidence; automation pins CLI/schema/manifest inputs. These map this stage to the <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/design-areas">ALZ design areas</a> without claiming an enterprise platform was deployed.</p>
+<p><strong>Production proposal:</strong> choose supported resilient control-plane and worker counts, failure-domain placement and spare capacity from the current AKS support matrix. Replicas must be schedulable on surviving workers during drain/failure; a PodDisruptionBudget cannot manufacture spare capacity. The one-control-plane, one-worker, one-replica lab cannot validate those properties. Cluster HA is also not backup: define workload/etcd or supported cluster-recovery protection, persistent-data RPO/RTO, and a tested application restore rather than assuming rescheduling recovers lost data.</p>
+<h3>4.1 Prepare the client and verify the platform</h3>
+<p>Use PowerShell7 on your management computer. Enter private identifiers locally. This example uses a separate Azure CLI configuration directory so it does not change another workload's default subscription. Install a missing CLI extension only after confirming it is absent.</p>
+<pre><code class="language-powershell">$ErrorActionPreference = 'Stop'
+$Sub = Read-Host 'Subscription ID'
+$Tenant = Read-Host 'Tenant ID'
+$Rg = Read-Host 'Existing Azure Local resource-group name'
+$Location = 'australiaeast'
+$CustomLocationName = 'jumpstart'
+$ClusterName = 'localbox-aks'
+$env:AZURE_CONFIG_DIR = Join-Path $HOME '.azure-local-lab'
+az login --tenant $Tenant --use-device-code --output none
+if ($LASTEXITCODE) { throw 'Azure sign-in failed.' }
+az account set --subscription $Sub
+az extension list --query "[].{Name:name,Version:version}" -o table
+# Only if missing:
+# az extension add --name aksarc
+# az extension add --name stack-hci-vm
+# az extension add --name connectedk8s
+
+$CustomLocation = az customlocation show --subscription $Sub `
+  --resource-group $Rg --name $CustomLocationName --query id -o tsv
+if ($LASTEXITCODE -or -not $CustomLocation) { throw 'Custom location is unavailable.' }
+az arcappliance list --subscription $Sub --resource-group $Rg `
+  --query "[].{Name:name,Provisioning:provisioningState,Status:status}" -o table
+az resource list --subscription $Sub --resource-group $Rg `
+  --query "[?contains(type,'extensions')].{Name:name,Type:type}" -o table</code></pre>
+<ol><li>Require the resource bridge to be Running and its provisioning to be Succeeded.</li>
+<li>Inspect the custom location's linked VM/AKS operator extensions in the portal; require Succeeded rather than reinstalling them blindly.</li>
+<li>On a cluster node, confirm both Azure Local nodes are Up, shared storage is Online, and capacity is available for the control plane and worker.</li>
+<li>Confirm the actual external virtual switch and VLAN routing on both nodes. The recorded lab switch was <code>ConvergedSwitch(compute_management)</code>. Do not substitute a guessed switch name.</li></ol>
+<h3>4.2 Create a dedicated workload logical network</h3>
+<p>Do not reuse the platform infrastructure logical network. Reserve the API address outside the node allocation pool and confirm that all addresses are free. The following uses the Azure CLI native entry point on Windows to preserve parentheses in the switch name; it is a direct CLI invocation, not a custom helper script. Change the executable path if your Azure CLI installation differs.</p>
+<pre><code class="language-powershell">$Az = 'C:\Program Files\Microsoft SDKs\Azure\CLI2\python.exe'
+$LnetName = 'localbox-aks-lnet-vlan110'
+&amp; $Az -IBm azure.cli stack-hci-vm network lnet create `
+  --subscription $Sub --resource-group $Rg --location $Location `
+  --custom-location $CustomLocation --name $LnetName `
+  --vm-switch-name 'ConvergedSwitch(compute_management)' `
+  --ip-allocation-method Static --address-prefixes 10.10.0.0/24 `
+  --gateway 10.10.0.1 --dns-servers 192.168.1.254 --vlan 110 `
+  --ip-pool-start 10.10.0.101 --ip-pool-end 10.10.0.199 --ip-pool-type vm
+if ($LASTEXITCODE) { throw 'Logical network creation failed.' }
+$Lnet = az stack-hci-vm network lnet show --subscription $Sub `
+  --resource-group $Rg --name $LnetName -o json | ConvertFrom-Json
+if ($Lnet.properties.provisioningState -ne 'Succeeded') {
+  throw 'The workload logical network is not ready.'
+}
+$LnetId = $Lnet.id</code></pre>
+<p>This is a create operation for a new network. If the logical network already exists, inspect its switch, subnet, gateway, VLAN and pool instead of rerunning create to change it. VLAN110 is meaningful only because the example lab router and node networking already support it.</p>
+<h3>4.3 Discover supported versions and sizes, then generate a key</h3>
+<pre><code class="language-powershell">az aksarc vmsize list --subscription $Sub --resource-group $Rg `
+  --custom-location $CustomLocationName -o table
+az aksarc get-versions --subscription $Sub --resource-group $Rg `
+  --custom-location $CustomLocationName -o json
+$Version = Read-Host 'Select a currently supported Linux Kubernetes version'
+$Key = Join-Path $HOME '.ssh\azure-local-aks'
+if (Test-Path $Key) { throw 'Choose a new dedicated key path or review the existing key.' }
+New-Item -ItemType Directory -Path (Split-Path $Key) -Force | Out-Null
+# PowerShell7: pass a genuinely empty passphrase, not a literal pair of quote characters.
+$PSNativeCommandArgumentPassing = 'Standard'
+ssh-keygen -t ed25519 -f $Key -N '' -C 'Azure Local AKS lab'
+if ($LASTEXITCODE) { throw 'SSH key generation failed.' }</code></pre>
+<p>Keep the private key owner-restricted. Only the <code>.pub</code> file is supplied to cluster creation. Do not publish either credentials or kubeconfig. A listed size is not sufficient: it must also be supported for its intended role. The recorded small worker size was not used as the control-plane size.</p>
+<h3>4.4 Validate, review, then create once</h3>
+<p>The first command validates the same input used by the second. Stop on errors. Before the create command, check Azure for an existing cluster or active deployment with the selected name. Do not create a duplicate when a command times out.</p>
+<pre><code class="language-powershell">$Create = @(
+  'aksarc','create','--subscription',$Sub,'--resource-group',$Rg,
+  '--name',$ClusterName,'--location',$Location,
+  '--custom-location',$CustomLocation,'--vnet-ids',$LnetId,
+  '--kubernetes-version',$Version,'--control-plane-count','1',
+  '--control-plane-vm-size','Standard_K8S3_v1','--control-plane-ip','10.10.0.5',
+  '--node-count','1','--node-vm-size','Standard_A2_v2',
+  '--enable-azure-rbac','--ssh-key-value',"$Key.pub"
+)
+&amp; $Az -IBm azure.cli @Create --validate
+if ($LASTEXITCODE) { throw 'AKS validation failed; no create request should follow.' }
+
+# Review the validation result and cloud deployment inventory before this write.
+&amp; $Az -IBm azure.cli @Create
+if ($LASTEXITCODE) {
+  throw 'Inspect the actual ARM deployment before deciding whether any retry is safe.'
+}</code></pre>
+<p>The recorded CLI returned an early ResourceNotFound when a no-wait post-submit read raced creation. ARM was still running. The correct response was to inspect the existing deployment, not submit another cluster. This example waits instead of relying on that no-wait behavior. Cluster provisioning, Arc connectivity, Kubernetes Ready, and application readiness remain separate gates.</p>
+<h3>4.5 Authorize only the intended lab administrator</h3>
+<p>Azure RBAC is enabled at creation. Have an authorized administrator assign the intended user appropriate <em>cluster-scoped</em> access. The example below intentionally grants cluster administration for this disposable lab; production should use narrower namespace/workload roles. Enter the directory object ID after verifying the person and tenant. It is not an email guessed from a name.</p>
+<pre><code class="language-powershell">$ClusterId = az connectedk8s show --subscription $Sub --resource-group $Rg `
+  --name $ClusterName --query id -o tsv
+if ($LASTEXITCODE -or -not $ClusterId) { throw 'The Arc cluster is not queryable yet.' }
+$UserObjectId = Read-Host 'Verified intended administrator directory object ID'
+az role assignment create --subscription $Sub --scope $ClusterId `
+  --assignee-object-id $UserObjectId --assignee-principal-type User `
+  --role 'Azure Arc Kubernetes Cluster Admin' --output none
+if ($LASTEXITCODE) { throw 'Cluster-scoped role assignment failed.' }
+az role assignment create --subscription $Sub --scope $ClusterId `
+  --assignee-object-id $UserObjectId --assignee-principal-type User `
+  --role 'Azure Arc Enabled Kubernetes Cluster User Role' --output none
+if ($LASTEXITCODE) { throw 'Cluster-connect role assignment failed.' }</code></pre>
+<h3>4.6 Connect with CLI only: Terminal A</h3>
+<p>Install kubectl and kubelogin on the client using the official client instructions if missing. In <strong>each terminal</strong>, set the same isolated Azure configuration, subscription, resource group and kubeconfig path. Do not copy this guide's original token cache; authenticate your own single-account context.</p>
+<pre><code class="language-powershell">$env:AZURE_CONFIG_DIR = Join-Path $HOME '.azure-local-lab'
+$Sub = Read-Host 'Subscription ID'
+$Rg = Read-Host 'Existing resource-group name'
+$ClusterName = 'localbox-aks'
+$KubeConfig = Join-Path $HOME '.kube\azure-local-lab'
+New-Item -ItemType Directory -Path (Split-Path $KubeConfig) -Force | Out-Null
+Get-NetTCPConnection -State Listen -LocalPort 47031 -ErrorAction SilentlyContinue
+
+# If the lab proxy is not already running, keep this command open in Terminal A.
+az connectedk8s proxy --subscription $Sub --resource-group $Rg `
+  --name $ClusterName --file $KubeConfig --port 47031 `
+  --kube-context azure-local-lab</code></pre>
+<p>The proxy blocks the terminal. Port47031 is the private Kubernetes API proxy, not the NGINX website. Explicit kubeconfig selection prevents changing an unrelated cluster context. If the proxy is already healthy, use it instead of opening another listener on the same port.</p>
+<h3>4.7 Apply the complete NGINX example: Terminal B</h3>
+<p>Set the same terminal variables, then save the following as <code>nginx.yaml</code>, or download the <a download="" href="code/nginx.yaml">exact YAML file</a>. It creates one namespace, one Deployment and one private service. The mutable image tag reproduces the recorded example; pin a reviewed digest for deterministic production delivery.</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: nginx-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: nginx
+          image: nginx:stable-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: nginx-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+</code></pre>
+<pre><code class="language-powershell">kubectl --kubeconfig $KubeConfig get nodes
+# Require both expected nodes Ready before applying the application.
+kubectl --kubeconfig $KubeConfig apply --dry-run=client -f .\nginx.yaml
+kubectl --kubeconfig $KubeConfig apply -f .\nginx.yaml
+kubectl --kubeconfig $KubeConfig --namespace nginx-demo `
+  rollout status deployment/nginx --timeout=180s
+kubectl --kubeconfig $KubeConfig --namespace nginx-demo get deployment,pods,services</code></pre>
+<p>Expect the Deployment1/1 Ready, a Running/Ready pod, and a ClusterIP service without an external IP. Resource requests/limits and probes are included. The pod does not mount a service-account token and the service is not an internet-facing load balancer.</p>
+<h3>4.8 Forward the website: Terminal B, then browser</h3>
+<pre><code class="language-powershell">Get-NetTCPConnection -State Listen -LocalPort 8087 -ErrorAction SilentlyContinue
+# Keep this running only if port8087 is not already occupied by a working lab forward.
+kubectl --kubeconfig $KubeConfig --namespace nginx-demo `
+  port-forward service/nginx 8087:80 --address 127.0.0.1</code></pre>
+<p>Open <strong>http://127.0.0.1:8087/ on the same computer</strong>. In a third terminal, <code>curl.exe --fail http://127.0.0.1:8087/</code> should return Welcome to nginx! The browser path is local8087 → kubectl → the Arc API connection → NGINX80. No host SSH connection or public firewall rule is needed.</p>
+<figure><img alt="Redacted actual NGINX page through a private AKS forwarding connection" src="assets/aks-nginx.png"/><figcaption>Recorded successful NGINX application capture in isolated Edge. This is genuine application evidence, not a portal creation screenshot or a newly executed deployment.</figcaption></figure>
+<p>Ctrl+C in Terminal B closes only web forwarding. Stop Terminal A only when no other lab session needs it. If a pod connection changes, port-forward can terminate; verify pod readiness and reconnect. If authentication expires, sign in to the isolated context again. Do not redeploy the cluster merely because a client tunnel stopped.</p>
+<h3>4.9 Diagnose and reverse at the smallest failed boundary</h3>
+<table>
+<caption>Required evidence before declaring the workload operational</caption>
+<thead><tr><th>Gate / execution context</th><th>Success evidence</th><th>Failure mode and recovery</th></tr></thead>
+<tbody>
+<tr><td>Azure CLI client → ARM / Arc over HTTPS443.</td><td>One completed deployment, intended cluster ID, connected bridge/extensions, scoped create/connect/API roles.</td><td>403 or denied deployment: inspect the exact action/scope and inherited policy. Do not grant every tenant user cluster administration.</td></tr>
+<tr><td>AKS nodes / platform network.</td><td>All expected Kubernetes nodes Ready, free IPs/capacity, API reachability, healthy kube-system DNS pods.</td><td>NotReady or address exhaustion: inspect node events, allocation pools, VLAN/DNS/egress. Repair dependencies, not individual ATC-managed switches.</td></tr>
+<tr><td>Pod → registry and service dependencies.</td><td>Reviewed image/digest can be pulled; kube-DNS resolves required names; requests fit available memory/CPU.</td><td>ImagePullBackOff: inspect registry authentication, DNS and HTTPS egress; Pending: inspect scheduling/events and resource requests before resizing.</td></tr>
+<tr><td>Application / service / client forward.</td><td>Readiness succeeds, restart count stable, service selectors yield ready endpoints, loopback HTTP response received.</td><td>CrashLoopBackOff or failed probes: inspect redacted pod logs/events and probe path/port. A Running pod or ClusterIP alone is not success.</td></tr>
+</tbody>
+</table>
+<p>The client proxy and application forward are separate management sessions: local47031 reaches the Kubernetes API, while local8087 forwards to the selected application backend. Neither provides public ingress, a routable service VIP, or general access to the workload subnet. Keep both loopback-bound. Registry/DNS testing must originate from the relevant nodes/pods; a successful laptop download does not prove cluster egress. Follow the <a href="https://learn.microsoft.com/azure/aks-hybrid-edge/local/hyperconverged/aks-networks">AKS logical-network requirements</a> and distinguish external DNS reachability from kube-DNS service health.</p>
+<p>Rollback application changes with the reviewed previous manifest/image; a Deployment rollback alone does not reverse changed ConfigMaps, Services or database schemas. Delete only the dedicated namespace when its contents are confirmed disposable; do not remove a shared logical network or infrastructure extension. For failed cluster provisioning, inspect outstanding operations and use the supported cluster lifecycle cleanup after approval, retaining evidence first. Never delete AKS-managed VMs in Hyper-V as a shortcut.</p>
+<p><strong>Handoff:</strong> retain sanitized version/size discovery, validation and operation timestamps, role scopes, node/readiness/restart/resource/probe results, DNS/registry checks, and the HTTP observation interval. The screenshot establishes only the recorded NGINX response through the lab forward, not a new deployment or sustained SLA. Alert delivery, update rollback and restore remain <strong>unverified</strong> until their owners demonstrate them. Remove temporary elevated lab role assignments when access is no longer needed.</p>
+<h3>Sources</h3>
+<ul><li><a href="https://learn.microsoft.com/azure/aks-hybrid-edge/local/aks-create-clusters-cli">Create AKS Arc clusters with CLI</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/aks-hybrid-edge/local/hyperconverged/aks-networks">AKS logical-network requirements</a> and <a href="https://learn.microsoft.com/azure/aks-hybrid-edge/local/hyperconverged/azure-rbac-local">Azure RBAC authorization</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/azure-arc/kubernetes/cluster-connect">Private Arc cluster-connect</a> and <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/">kubectl application port-forwarding</a>.</li></ul>
+
+<div class="pager"><a class="button secondary" href="03-deploy.html">Previous: Deploy Azure Local</a><a class="button" href="05-vm.html">Next: Deploy Ubuntu and a web application</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Azure Local overview: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Azure Local overview | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html" aria-current="page"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Azure Local overview</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>1. Azure Local overview</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-01.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Azure Local overview; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-01.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Azure Local overview" src="assets/architecture-01.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="overview">1. Understand Azure Local before building the lab</h2>
+<p>Azure Local brings Azure-managed infrastructure to a customer location. In the connected, hyperconverged deployment covered here, physical machines contribute Hyper-V compute and Storage Spaces Direct storage. Windows and Linux virtual machines, and Kubernetes workloads running on AKS on Azure Local, consume that infrastructure. Azure remains the management plane; this is not a copy of every Azure service running inside a rack.</p>
+<p>This guide follows an educational <strong>Jumpstart LocalBox</strong> deployment: Azure Local machines are themselves nested virtual machines inside one Azure VM. Deployment evidence begins on <strong>16 October 2026</strong>; the update Installed state, both nodes Up, and Ubuntu ownership on AzLHOST1 were recorded on <strong>17 October 2026</strong>. None is a live health assertion for 18 October. Read the <a href="architecture.html">architecture and evidence boundaries</a>, choose the correct deployment path in chapter 2, then work through the prerequisites and stop conditions in chapter 3.</p>
+<figure>
+<img alt="Microsoft reference architecture showing Azure management services above Azure Local workloads, Hyper-V, Arc resource bridge, Storage Spaces Direct, and physical machines connected through redundant switches." src="assets/azure-local-reference.svg"/>
+<figcaption>Official Microsoft Learn reference architecture, <strong>not the actual nested lab</strong>. Microsoft, <a href="https://learn.microsoft.com/en-us/azure/architecture/hybrid/azure-local-baseline">Azure Local hyperconverged baseline</a>; reproduced without modification under <a href="https://github.com/MicrosoftDocs/architecture-center/blob/main/LICENSE">CC BY 4.0</a>. The reference depicts 2–16 physical machines and storage-switched networking.</figcaption>
+</figure>
+<h3>Follow a management request through the layers</h3>
+<ol class="steps">
+<li><strong>Start in Azure.</strong> An administrator authenticates with Microsoft Entra ID and submits an operation through the portal, Azure CLI, PowerShell, or a Bicep/ARM deployment. Azure Resource Manager applies the resource model and Azure role-based access control.</li>
+<li><strong>Locate the local target.</strong> Azure Arc projects the infrastructure into Azure. A <em>custom location</em> identifies the Azure Local deployment target; it is not a public Azure region or a geographical relocation of the hardware.</li>
+<li><strong>Translate the operation locally.</strong> The Azure Arc resource bridge is an appliance VM hosting a Kubernetes management cluster. Its Azure Local VM operator/controller extension turns supported Azure VM lifecycle requests into local fabric operations.</li>
+<li><strong>Run the workload.</strong> Hyper-V executes the guest on a cluster node. Storage Spaces Direct pools eligible node-local drives and provides resilient storage; Cluster Shared Volumes expose shared storage to the cluster. Virtual networking connects workload interfaces to the intended networks.</li>
+<li><strong>Observe two different responsibilities.</strong> Azure reports resource provisioning and management status; operating-system and application checks establish whether the guest is actually healthy. Neither a green ARM deployment nor an Arc connection alone proves application availability.</li>
+</ol>
+<table>
+<caption>Components and boundaries</caption>
+<thead><tr><th scope="col">Component</th><th scope="col">Purpose</th><th scope="col">Do not confuse it with</th></tr></thead>
+<tbody>
+<tr><td>Azure Arc-enabled servers</td><td>Onboard and manage the Azure Local machines.</td><td>Azure Local VM resources created for tenant workloads.</td></tr>
+<tr><td>Resource bridge + custom location</td><td>Connect cloud resource operations to the local platform.</td><td>The application's Kubernetes cluster.</td></tr>
+<tr><td>AD DS, DNS, and time</td><td>Provide the identity and name-resolution dependencies used by this AD-based lab.</td><td>Microsoft Entra ID authentication to Azure.</td></tr>
+<tr><td>Cloud witness</td><td>Provides an additional quorum vote for the two-node instance.</td><td>A third compute node, a replica of VM disks, or a backup.</td></tr>
+<tr><td>AKS control plane and workers</td><td>Manage Kubernetes objects and execute application pods.</td><td>The resource bridge's separate infrastructure-management Kubernetes cluster.</td></tr>
+</tbody>
+</table>
+<p>Production identity, DNS, time, and recovery dependencies must remain available when the Azure Local instance is unavailable. This lab places its domain controller and router in a nested management environment for convenience, not as a production dependency design. Current Azure Local also documents a local-identity-with-Key-Vault path; it is not the AD-based LocalBox path taught here.</p>
+<h3>1.1 Establish the CAF / Azure Landing Zones boundary</h3>
+<p><strong>Proposed enterprise target, not deployed lab:</strong> the <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/">current Azure Landing Zones (ALZ) architecture</a> includes Platform management-group children <strong>Security, Management, Identity, and Connectivity</strong>, each with its corresponding shared-service subscription. Under Workload Landing Zones, the <strong>Local</strong> management group contains an <strong>Azure Local Clusters</strong> subscription and an <strong>Applications</strong> subscription. Corp and Online remain other workload categories; Local is not an Azure region or a network hub. This placement allows Azure Local-specific policy without imposing unsuitable cloud-VM assumptions on hybrid infrastructure.</p>
+<p>The actual exercise uses <strong>one disposable subscription and resource group</strong>; no enterprise hierarchy, subscription vending, central Sentinel workspace, ExpressRoute, or production landing zone is established by these chapters. Treat the two subscriptions in the target as ownership/governance boundaries, not a promise that every provider supports arbitrary cross-subscription references. Validate each resource type, custom location, region, provider registration, and supported workload-placement relationship before implementing that separation. Do not move existing bridge-dependent resources merely to match a diagram.</p>
+<p>For the target, platform engineers own cluster machines, infrastructure extensions, bridge, custom location, and infrastructure dependencies. Application teams own their workload lifecycle and data, with delegated access to approved shared placement/network/storage resources. Arc-enabled application resources belong with the workload they support; Arc-projected identity infrastructure belongs with the identity service. This follows Microsoft's <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/hybrid/enterprise-scale-landing-zone">hybrid resource-placement guidance</a>, which is marked deprecated and scheduled for removal on 30 October 2026; use the maintained ALZ and Azure Local references for future decisions.</p>
+<h3>1.2 Separate three planes before troubleshooting</h3>
+<table>
+<caption>Execution context, authority, and transport are separate checks</caption>
+<thead><tr><th>Plane</th><th>Request and permission boundary</th><th>Required evidence</th></tr></thead>
+<tbody>
+<tr><td>Azure control plane</td><td>Administrator → Entra authentication → ARM over HTTPS 443; Azure RBAC and policy authorize resource operations.</td><td>Correct masked tenant/subscription context, scoped role, operation ID, provisioning result.</td></tr>
+<tr><td>Local management plane</td><td>Bridge/controller → cluster APIs; authorized AD cluster operators use approved private management paths. Guest SSH and Kubernetes authorization remain additional boundaries.</td><td>Bridge and extension health, current cluster state, successful authorized guest/API access.</td></tr>
+<tr><td>Workload data plane</td><td>Clients → application IP/port; Hyper-V workload switching and CSV/S2D storage carry application traffic and persistence.</td><td>Actual DNS/routing, application response, dependency health, and recoverable data.</td></tr>
+</tbody>
+</table>
+<p>A management group distributes inherited controls; it does not proxy packets. Resource-group membership grants neither routing nor application access. Arc is not a VPN, and its private relay features do not connect arbitrary subnets. The loopback forwards later in the guide are explicit, authenticated client sessions, not an enterprise ingress design. Azure Local's <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements?view=azloc-2609">firewall requirements</a> explicitly exclude Arc Private Link Scopes for its infrastructure: required Arc endpoints resolve publicly, outbound allowlists are necessary, and HTTPS inspection is unsupported. Do not infer infrastructure Private Link support from another Arc product's capabilities.</p>
+<h3>1.3 Accept the design before accepting deployment evidence</h3>
+<ol class="steps">
+<li><strong>Inputs:</strong> classify data, identify a service owner, choose connected AD-based deployment, and record intended site, support release, access model, budget, and recovery objectives privately. Reader access is sufficient for inventory; later write operations need separately approved permissions.</li>
+<li><strong>Design-area mapping:</strong> map tenant/billing to the disposable scope; identity to Entra versus AD versus guest/Kubernetes permissions; resource organization to Local placement; connectivity to explicit flow paths; security/governance to tested controls; management to monitoring and restore; automation to pinned, reviewed artifacts. See the <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/design-areas">eight ALZ design areas</a>.</li>
+<li><strong>Success gate:</strong> produce an approved boundary/owner matrix and dependency inventory, separating observed lab facts, proposed physical controls, and unverified assumptions. A diagram or green portal badge alone fails this gate.</li>
+<li><strong>Failure and recovery:</strong> if ARM works but guest access fails, diagnose routing, relay, and guest authorization independently. If Arc is disconnected, avoid duplicate creation; preserve operation evidence and repair the documented connectivity/agent dependency. Running workloads may continue, but cloud-mediated management and monitoring are degraded.</li>
+<li><strong>Rollback and operations:</strong> before any write, retain the previous configuration and approved reversal path. The platform owner handles infrastructure incidents; the workload owner proves application recovery; security reviews privileged changes and redacted audit evidence. Audit-first policies require resource/API compatibility testing before enforcement.</li>
+</ol>
+<h3>Inspect the resource model without changing anything</h3>
+<p>After signing in to the intended subscription, list resource types rather than publishing a full resource-ID dump. Expect separate machine, bridge, custom-location, and workload resources as the relevant stages complete. An early infrastructure-only deployment will not contain all of them.</p>
+<pre><code class="language-powershell">$rg = Read-Host 'Enter your lab resource-group name'
+az resource list --resource-group $rg `
+  --query "[].{Name:name,Type:type,Region:location}" --output table</code></pre>
+<div class="warning"><p><strong>Nested is not production high availability.</strong> Both simulated nodes share one outer VM and its storage, network, and failure domain. A nested node restart can demonstrate cluster behavior, but cannot establish physical fault isolation, production throughput, recovery objectives, or hardware certification.</p></div>
+<h3>Sources</h3>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/architecture/hybrid/azure-local-baseline">Microsoft Learn: architecture, workflow, dependencies, and witness</a>.</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/azure-arc-vm-management-overview?view=azloc-2609">Microsoft Learn: VM management components and workflow</a>.</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-introduction?view=azloc-2609">Microsoft Learn: deployment methods and automatic resource bridge installation</a>.</li>
+</ul>
+
+<div class="pager"><a class="button secondary" href="index.html">Previous: Start here</a><a class="button" href="02-scenarios.html">Next: Choose the deployment scenario</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>

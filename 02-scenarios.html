@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Choose the deployment scenario: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Choose the deployment scenario | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html" aria-current="page"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Choose the deployment scenario</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>2. Choose the deployment scenario</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-02.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Choose the deployment scenario; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-02.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Choose the deployment scenario" src="assets/architecture-02.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="scenarios">2. Choose a scenario and size the learning environment</h2>
+<p>Start with the workload and operational requirements, not the deployment script. Azure Local is useful when applications need local execution, low-latency access to equipment or data, and a consistent Azure management experience. Azure-hosted VMs or managed AKS may be simpler when there is no local execution requirement. Connected Azure Local still needs its documented outbound endpoints; this guide does not describe disconnected operation.</p>
+<table>
+<caption>Choose a path before proceeding</caption>
+<thead><tr><th scope="col">Scenario</th><th scope="col">Production path</th><th scope="col">What LocalBox can teach</th></tr></thead>
+<tbody>
+<tr><td>Branch or factory applications</td><td>Validated physical hardware, redundant networking, capacity planning, and independent recovery.</td><td>Provision an Arc-managed VM and understand logical networks and storage paths.</td></tr>
+<tr><td>Containerized local services</td><td>Supported AKS release, resilient control plane and worker design, registry access, and application backup.</td><td>Create a small AKS cluster, inspect nodes, and deploy a test application.</td></tr>
+<tr><td>VM modernization or migration</td><td>Check guest support, disk and network compatibility, licensing, downtime, and rollback.</td><td>Practice image preparation and target validation; a walkthrough is not proof that migration completed.</td></tr>
+<tr><td>Training and automation</td><td>Keep test and production environments separate.</td><td>Explore ARM/Bicep, Azure Arc, and layered troubleshooting without procuring physical servers.</td></tr>
+</tbody>
+</table>
+<h3>Understand the actual lab topology</h3>
+<figure><img alt="Illustration of the nested LocalBox lab, with both Azure Local nodes inside one outer VM" src="assets/lab-topology.svg"/><figcaption>Original lab-topology illustration, not a portal screenshot or Microsoft production reference architecture.</figcaption></figure>
+<figure>
+<pre>Azure management plane / Australia East resource region
+                         |
+LocalBox-Client — Standard_E32s_v6, 32 vCPU, 256 GiB
+  +-- AzLHOST1 — nested Azure Local node, 96 GiB
+  +-- AzLHOST2 — nested Azure Local node, 96 GiB
+  |     +-- clustered storage, resource bridge, workload VMs / AKS
+  +-- AzLMGMT — nested management host
+        +-- domain controller / DNS
+        +-- router / NAT and workload-network routing</pre>
+<figcaption>Learning topology derived from the <a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/artifacts/PowerShell/LocalBox-Config.psd1">pinned public LocalBox configuration</a>. All nested machines ultimately depend on the same outer VM.</figcaption>
+</figure>
+<p>The two node allocations consume 192 GiB before the management host, appliances, and outer operating system are considered. Memory assigned to a nested host is not all available to application guests. The sample VM is only <strong>2 vCPU and 4 GiB</strong>; the AKS exercise uses <strong>one worker plus its control plane</strong>. These are learning sizes, not application sizing recommendations or highly available AKS designs.</p>
+<div class="note"><p><strong>Region is not a room address.</strong> <code>australiaeast</code> selects the cloud resource region in this guide. In a physical installation, that property does not state where the customer machines are installed. In this lab, the outer Azure VM also resides in Azure rather than an on-premises datacenter.</p></div>
+<h3>Reserve networks before provisioning workloads</h3>
+<table>
+<caption>Generic lab IP plan — confirm against your chosen configuration</caption>
+<thead><tr><th scope="col">Purpose</th><th scope="col">Subnet / VLAN</th><th scope="col">Example use</th></tr></thead>
+<tbody>
+<tr><td>Nested management</td><td><code>192.168.1.0/24</code>, untagged</td><td>Router .1; management .11; nodes .12/.13; DNS .254. Reserve infrastructure addresses separately.</td></tr>
+<tr><td>AKS workload</td><td><code>10.10.0.0/24</code>, VLAN 110</td><td>Gateway .1; separate control-plane, node, and service/VIP allocations.</td></tr>
+<tr><td>VM workload</td><td><code>192.168.200.0/24</code>, VLAN 200</td><td>Gateway .1; workload guest addresses from a nonoverlapping pool.</td></tr>
+<tr><td>Storage</td><td>Dedicated networks; pinned configuration uses VLANs 711/712</td><td>Node-to-node storage traffic, not application or internet traffic.</td></tr>
+</tbody>
+</table>
+<ol class="steps">
+<li>Check for address conflicts with your workstation, VPN, Azure virtual network, and existing lab networks. A VLAN label alone does not establish routing or security isolation.</li>
+<li>Reserve the platform infrastructure pool, AKS control-plane/node/VIP addresses, and VM pool without overlap. Keep the router and DNS addresses reachable from each intended network.</li>
+<li>Plan access through Bastion to LocalBox-Client, then through AzLMGMT where necessary. The second-level workload subnet is not automatically routable from Azure Bastion.</li>
+<li>Inspect the outer host before adding workloads. Preserve free memory and storage for infrastructure operations; do not increase guest sizes merely because virtual CPUs can be overcommitted.</li>
+</ol>
+<pre><code class="language-powershell"># Run on LocalBox-Client, not on your personal workstation.
+Get-VM -Name 'AzLHOST1','AzLHOST2','AzLMGMT' |
+  Select-Object Name, State, ProcessorCount,
+    @{Name='StartupGiB';Expression={$_.MemoryStartup / 1GB}}
+Get-Volume | Select-Object DriveLetter, HealthStatus, SizeRemaining, Size</code></pre>
+<h3>Keep the public guide public-safe</h3>
+<table class="evidence">
+<caption>Fields retained for context; private values deliberately excluded</caption>
+<thead><tr><th scope="col">Field</th><th scope="col">Published value</th></tr></thead>
+<tbody>
+<tr><td>Azure account</td><td>[MASKED: Azure account]</td></tr>
+<tr><td>Subscription ID</td><td>[MASKED: subscription ID]</td></tr>
+<tr><td>Tenant ID</td><td>[MASKED: tenant ID]</td></tr>
+<tr><td>Administrator</td><td>[MASKED]</td></tr>
+<tr><td>Password</td><td>[MASKED: not published]</td></tr>
+<tr><td>Actual spend</td><td>[MASKED: billing]</td></tr>
+</tbody>
+</table>
+<p>Budget for the outer VM, managed disks, Bastion, NAT gateway, public IPs, storage, and monitoring. Deallocating the VM does not remove all charges. Use your own approved cost estimate and cleanup plan; the recorded lab is not a pricing quote.</p>
+<h3>2.1 Convert the scenario into a measurable admission contract</h3>
+<p>Before chapter3, the service owner supplies peak/steady CPU, committed memory, usable storage, IOPS/latency, growth, maintenance windows, dependency criticality, data classification, and supported guest/application versions. Specify <strong>RPO</strong> (acceptable data loss) and <strong>RTO</strong> (acceptable recovery duration) as approved values; “high availability” is not a value. The lab has not established either objective. Size the physical design for the surviving capacity after the largest allowed node/fault-domain loss, including platform appliances, AKS control planes, update drain, and rebuild overhead. Count usable resilient capacity, not the sum of raw drives or provisioned virtual disks.</p>
+<p><strong>Proposed physical target:</strong> validated nodes, independent power feeds and appropriately separated racks/fault domains, redundant switches/links, and N+1 compute headroom must align with the selected supported topology. CSV access and S2D resiliency permit shared workload placement but do not make every simultaneous fault survivable. Confirm the exact mirror/parity scheme, supported node count, repair reserve, quorum model, and witness reachability with the OEM/platform team. A witness is a quorum vote, not backup or a third copy of workload data. Keep backups and recovery dependencies outside the cluster failure domain and prove restores with application-consistent checks.</p>
+<p><strong>Observed lab limitation:</strong> the outer VM, its disks, virtual switches, nested router, and domain services are common dependencies for both simulated nodes. A successful nested-node exercise cannot validate rack/power isolation, NIC redundancy, RDMA throughput, or production S2D fault tolerance. Outer-VM loss can remove all nodes at once. Do not report a platform resiliency design as tested merely because two nested node names exist.</p>
+<h3>2.2 Approve flows, not just address ranges</h3>
+<table>
+<caption>Connectivity worksheet required before address allocation</caption>
+<thead><tr><th>Flow / execution context</th><th>Protocol and authority</th><th>Pass / failure boundary</th></tr></thead>
+<tbody>
+<tr><td>Nodes, bridge and proxy → Azure endpoints</td><td>Documented outbound HTTPS443 and HTTP80 destinations; DNS TCP/UDP53 and reliable time UDP123.</td><td>Resolve and reach the release/region-specific allowlist without TLS inspection; a workstation-only connectivity test is insufficient.</td></tr>
+<tr><td>Nodes → AD DS / management</td><td>Approved DNS, Kerberos88, LDAP and RPC/SMB rules from the complete Microsoft firewall matrix; domain/cluster authorization.</td><td>Domain/DNS/time validation passes from every node; do not replace the full ruleset with a single LDAP port.</td></tr>
+<tr><td>Node → node storage / migration</td><td>Supported Network ATC intents; SMB445 and the selected supported migration transport on trusted networks.</td><td>Consistent host intent/switch state, MTU and VLANs; no storage path exposed as application ingress.</td></tr>
+<tr><td>Workloads → DNS, registry, updates, application dependencies</td><td>Explicit routed VLAN paths and approved egress; separate guest/application credentials.</td><td>Resolve, authenticate, and fetch from the actual guest/pod context, not just the outer host.</td></tr>
+</tbody>
+</table>
+<p>Use the <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements?view=azloc-2609">full Azure Local firewall matrix</a> and release-specific AKS/bridge requirements as inputs. An Azure subscription, Local management group, or Arc registration creates no packet route. Arc infrastructure Private Link is not an assumed option. Network ATC owns the converged switch and cluster migration-network configuration; use its <a href="https://learn.microsoft.com/azure/azure-local/manage/manage-network-atc?view=azloc-2609">supported intent/override paths</a>, not ad hoc per-host edits. Workload logical networks consume the existing supported switch; they do not repair an incorrect physical trunk.</p>
+<h3>2.3 Record ALZ decisions and stop/go ownership</h3>
+<p>The <a href="architecture.html">architecture page</a> separates the single-subscription lab from the proposed <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/">ALZ Local hierarchy</a>. Map this stage's resource-organization decision to Local's Azure Local Clusters and Applications subscriptions; map shared identity, connectivity, management and security services to the corresponding Platform subscriptions. Tenant/billing and identity decisions establish authorized scope; network and management decisions establish reachability and recovery; governance/security establish policy and privileged access; automation records the pinned configuration and reversible change. These are design decisions, not resources already deployed here.</p>
+<p>The platform owner approves capacity and supported hardware; network/identity owners approve flows and AD dependencies; the workload owner approves RPO/RTO and restore tests; security reviews access and logs; the cost owner approves the disposable scope. Start applicable Azure Policies in <strong>Audit</strong>, checking aliases, resource types, API versions, bridge deployment and upgrades before Deny. Do not broadly require public-network-disabled on every resource: that can break supported Arc infrastructure. Remediation identities receive only the necessary scope, not tenant-wide administration.</p>
+<p><strong>Exit evidence:</strong> approved IP/pool reservations, capacity arithmetic, support matrix, masked role/tenant/billing fields, dependency tests, and an owned rollback/cleanup record. If capacity, DNS or policy compatibility fails, stop before creation and revise that input. Roll back the proposed reservations/configuration through their owners; do not erase existing cluster networks or shared dependencies. Re-enter only after the failed gate has repeatable evidence.</p>
+<h3>Sources</h3>
+<ul>
+<li><a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/bicep/main.bicep">Pinned LocalBox entry point and allowed VM sizes</a>; <a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/artifacts/PowerShell/LocalBox-Config.psd1">memory and network configuration</a>.</li>
+<li><a href="https://jumpstart.azure.com/azure_jumpstart_localbox/cloud_deployment">Official LocalBox connection and nested routing guidance</a>.</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/architecture/hybrid/azure-local-baseline">Microsoft Learn: production workload isolation, availability, and dependencies</a>.</li>
+</ul>
+
+<div class="pager"><a class="button secondary" href="01-overview.html">Previous: Azure Local overview</a><a class="button" href="03-deploy.html">Next: Deploy Azure Local</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deploy Ubuntu and a web application: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Deploy Ubuntu and a web application | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html" aria-current="page"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Deploy Ubuntu and a web application</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>5. Deploy Ubuntu and a web application</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-05.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Deploy Ubuntu and a web application; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-05.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Deploy Ubuntu and a web application" src="assets/architecture-05.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="vm">5. Prepare Ubuntu, create an Arc VM, and add a web application</h2>
+<p>The final demonstration VM is an <strong>Azure Local VM enabled by Azure Arc</strong>, created through the Azure control plane and stored on a Cluster Shared Volume. Do not create an unmanaged local VM as a substitute and assume it will appear in the portal.</p>
+<div class="note"><strong>Recorded application versus new example:</strong> the captured lab ran a Python identity observer on guest loopback8080. The complete downloadable script below installs a separate <strong>NGINX identity-snapshot example on loopback8081</strong>. That NGINX example is provided for you to deploy; this publication does not claim it was installed in the captured VM. Its static snapshot is not live host-ownership telemetry.</div>
+<h3>5.1 Check the platform and storage path</h3>
+<p>Complete the platform gates in chapter3. Use an authenticated, single-account Azure CLI context, then enter the identifiers locally. The private fields remain masked in this public guide. The example uses the same generic lab names as the migration chapter.</p>
+<p><strong>Stage inputs and authority:</strong> require a supported generalized Generation2 image, provenance/checksum, healthy user CSV/storage path, free destination capacity, approved VLAN200 reservations, a dedicated guest key, and authorized Azure VM/network/image operations. Azure resource permission is distinct from local Hyper-V/cluster rights and from Ubuntu sudo/SSH. The image builder's administrator may prepare that isolated builder; that permission does not authorize editing a control-plane-managed workload disk. Verify Azure sign-in and subscription selection succeed before any following create request.</p>
+<p>In the <a href="architecture.html">proposed ALZ design</a>, the application team's VM/guest-management resources align with Local's Applications subscription, while cluster/bridge/custom-location dependencies align with Azure Local Clusters. The examples use the actual single-subscription lab, not an implemented multi-subscription landing zone. Validate support for shared-resource references and scope delegation before separating them; moving a resource group is not a substitute for a supported placement design. A resource's management-group membership supplies no route to its NIC.</p>
+<p>This stage maps <strong>identity</strong> to Azure, builder and guest privileges; <strong>resource organization</strong> to workload ownership; <strong>networking</strong> to VLAN/DNS/egress; <strong>security/governance</strong> to image and access controls; <strong>management</strong> to backup/restore and monitoring; <strong>automation</strong> to reproducible image/script artifacts; and <strong>tenant/billing</strong> to approved scope and retention. Apply <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/design-areas">ALZ controls</a> in Audit first against these HybridCompute/AzureStackHCI APIs, including guest-agent and bridge operations, before enforcing Deny.</p>
+<pre><code class="language-powershell">$ErrorActionPreference = 'Stop'
+$Sub = Read-Host 'Subscription ID'
+$Tenant = Read-Host 'Tenant ID'
+$Rg = Read-Host 'Existing Azure Local resource-group name'
+$Location = 'australiaeast'
+$env:AZURE_CONFIG_DIR = Join-Path $HOME '.azure-local-lab'
+az login --tenant $Tenant --use-device-code --output none
+az account set --subscription $Sub
+$Custom = az customlocation show --subscription $Sub --resource-group $Rg `
+  --name jumpstart --query id -o tsv
+if ($LASTEXITCODE -or -not $Custom) { throw 'Custom location is unavailable.' }
+az stack-hci-vm storagepath list --subscription $Sub --resource-group $Rg `
+  --query "[].{Name:name,State:properties.provisioningState,Path:properties.path}" -o table
+$StorageName = Read-Host 'Select an existing healthy user storage-path name'
+$Storage = az stack-hci-vm storagepath show --subscription $Sub --resource-group $Rg `
+  --name $StorageName --query id -o tsv
+if ($LASTEXITCODE -or -not $Storage) { throw 'Storage path is unavailable.' }</code></pre>
+<p>Require both cluster nodes Up, storage healthy, enough free shared capacity, and matching external workload switches. The OS disk and VM configuration must be on shared cluster storage for this exercise. A disk on the outer VM's local C: drive is not shared cluster storage.</p>
+<h3>5.2 Prepare a Generation2 Ubuntu image</h3>
+<p>Use the <a href="https://learn.microsoft.com/azure/azure-local/manage/virtual-machine-image-linux-sysprep?view=azloc-2609">official Ubuntu image preparation procedure</a>. An ordinary Azure Marketplace VHD is not automatically compatible with Azure Local provisioning. The supported preparation path below uses a temporary Hyper-V image-builder VM and an official Ubuntu22.04 or24.04 LTS ISO.</p>
+<ol><li>Download an official Ubuntu Server ISO and verify its publisher checksum. On a preparation Hyper-V machine, create a <strong>new</strong> VM named UbuntuImagePrep with Generation2, 2vCPU, 4GiB and a32GiB VHDX. Attach the ISO and a working private network.</li>
+<li>Enable Secure Boot with the <strong>Microsoft UEFI Certificate Authority</strong> template. Install Ubuntu, create a temporary builder account, and enable OpenSSH. This builder is separate from AzLHOST1, AzLHOST2 and the final Arc VM.</li>
+<li>Install the Azure kernel, SSH and Hyper-V integration components. Reboot <strong>only the builder VM</strong>, then verify the running kernel and network before generalization.</li></ol>
+<pre><code class="language-bash"># Inside only the new Ubuntu image-builder guest:
+sudo apt-get update
+sudo apt-get install -y linux-azure linux-cloud-tools-azure openssh-server openssh-client cloud-init
+sudo systemctl enable --now ssh
+# Reboot the image-builder guest from its console, then confirm:
+uname -r
+ip -4 address
+modinfo hv_sock</code></pre>
+<p>Before generalizing, use <code>sudo dpkg-reconfigure cloud-init</code> to select NoCloud and deselect the Azure datasource. Verify <code>/etc/cloud/cloud.cfg.d/90_dpkg.cfg</code> contains <code>datasource_list: [ NoCloud ]</code>. Keep administrative sudo access limited to the designated provisioning account rather than granting every user passwordless sudo.</p>
+<p>Run the cleanup below <strong>only on the image-builder guest</strong>. It removes builder-specific cloud/network identity so the final VM can be provisioned with its own NIC, user and key. Remove the temporary builder account's authorized SSH key and lock or remove that builder account before distributing the image. Arrange a root console session for final cleanup; never distribute an image containing working builder access credentials.</p>
+<pre><code class="language-bash"># IMAGE BUILDER ONLY. Never run this on an existing workload or cluster node.
+sudo rm -f /etc/cloud/cloud.cfg.d/50-curtin-networking.cfg \
+  /etc/cloud/cloud.cfg.d/curtin-preserve-sources.cfg \
+  /etc/cloud/cloud.cfg.d/99-installer.cfg \
+  /etc/cloud/cloud.cfg.d/subiquity-disable-cloudinit-networking.cfg \
+  /etc/cloud/ds-identify.cfg
+sudo rm -f /etc/netplan/*.yaml
+sudo cloud-init clean --logs --seed --machine-id
+sudo rm -f /etc/ssh/ssh_host_*
+sudo apt-get clean
+sync
+sudo systemctl poweroff</code></pre>
+<p>After the builder is Off, copy its VHDX to a dedicated directory in an existing user CSV, for example <code>C:\ClusterStorage\UserStorage_1\Images\ubuntu24-prepared.vhdx</code>. Compare SHA256 before and after copying. Do not copy an actively written OS disk or change existing managed VM disk formats. Keep original image licensing and provenance with your private build records.</p>
+<h3>5.3 Import the prepared image through Azure</h3>
+<pre><code class="language-powershell">$ImagePath = Read-Host 'Prepared VHDX path on the cluster shared volume'
+az stack-hci-vm image create --subscription $Sub --resource-group $Rg `
+  --name ubuntu24-motion-image --custom-location $Custom `
+  --location $Location --os-type Linux --image-path $ImagePath `
+  --storage-path-id $Storage
+if ($LASTEXITCODE) { throw 'Image import failed; inspect before retrying.' }
+az stack-hci-vm image show --subscription $Sub --resource-group $Rg `
+  --name ubuntu24-motion-image --query properties.provisioningState -o tsv</code></pre>
+<p>Require Succeeded before creating the final VM. The historical lab used a checksum-verified Canonical generic UEFI/GPT cloud image, converted and prepared on an isolated builder. The ISO path above avoids presenting that custom conversion as an upstream guarantee.</p>
+<h3>5.4 Create the private VM network and NIC</h3>
+<p>These addresses are an example for the existing LocalBox VLAN200 router. Verify the actual switch, gateway, DNS and unused pool first. Do not overwrite an existing network or reuse the AKS VLAN110 network.</p>
+<pre><code class="language-powershell">$Az = 'C:\Program Files\Microsoft SDKs\Azure\CLI2\python.exe'
+&amp; $Az -IBm azure.cli stack-hci-vm network lnet create `
+  --subscription $Sub --resource-group $Rg --location $Location `
+  --name localbox-vm-lnet-vlan200 --custom-location $Custom `
+  --vm-switch-name 'ConvergedSwitch(compute_management)' `
+  --ip-allocation-method Static --address-prefixes 192.168.200.0/24 `
+  --gateway 192.168.200.1 --dns-servers 192.168.1.254 --vlan 200 `
+  --ip-pool-start 192.168.200.50 --ip-pool-end 192.168.200.59 --ip-pool-type vm
+if ($LASTEXITCODE) { throw 'VM logical network creation failed.' }
+az stack-hci-vm network nic create --subscription $Sub --resource-group $Rg `
+  --name ubuntu-motion-nic --custom-location $Custom --location $Location `
+  --subnet-id localbox-vm-lnet-vlan200 --ip-address 192.168.200.50 `
+  --dns-servers 192.168.1.254
+if ($LASTEXITCODE) { throw 'VM NIC creation failed.' }</code></pre>
+<h3>5.5 Create the final portal-managed VM without putting a password in CLI arguments</h3>
+<p>Generate a dedicated owner-restricted SSH key using the PowerShell7 key-generation pattern in chapter4, at <code>$HOME\.ssh\azure-local-vm</code>. Never overwrite a key used by an existing VM. Before the write, inspect the resource group and stop if ubuntu-motion already exists.</p>
+<p>The following uses the documented stable ARM schema to specify exactly2processors and4096MB. This also avoids an installed CLI version's unconditional password prompt in an SSH-only create flow. The password is entered with Get-Credential and used only in the HTTPS request body in memory; do not print the payload, token or credential. Guest SSH password authentication stays disabled.</p>
+<pre><code class="language-powershell">$Key = Join-Path $HOME '.ssh\azure-local-vm'
+if (-not (Test-Path "$Key.pub")) { throw 'Create the dedicated authorized VM key first.' }
+$VmName = 'ubuntu-motion'
+$Scope = "/subscriptions/$Sub/resourceGroups/$Rg"
+$MachineId = "$Scope/providers/Microsoft.HybridCompute/machines/$VmName"
+$ImageId = "$Scope/providers/Microsoft.AzureStackHCI/galleryImages/ubuntu24-motion-image"
+$NicId = "$Scope/providers/Microsoft.AzureStackHCI/networkInterfaces/ubuntu-motion-nic"
+$Credential = Get-Credential -UserName 'azureuser' -Message 'New VM administrator credential'
+$Token = az account get-access-token --subscription $Sub `
+  --resource https://management.azure.com/ -o json | ConvertFrom-Json
+if ($LASTEXITCODE -or -not $Token.accessToken) { throw 'Cannot acquire ARM authorization.' }
+$Headers = @{Authorization="Bearer $($Token.accessToken)"}
+$Parent = @{
+  location=$Location; kind='HCI'; identity=@{type='SystemAssigned'}
+}
+$null = Invoke-RestMethod -Method Put -Headers $Headers -ContentType 'application/json' `
+  -Uri "https://management.azure.com${MachineId}?api-version=2024-07-10" `
+  -Body ($Parent | ConvertTo-Json -Depth 5)
+$Body = @{
+  extendedLocation=@{name=$Custom;type='CustomLocation'}
+  properties=@{
+    hardwareProfile=@{vmSize='Custom';processors=2;memoryMB=4096}
+    osProfile=@{
+      computerName=$VmName;adminUsername=$Credential.UserName
+      adminPassword=$Credential.GetNetworkCredential().Password
+      linuxConfiguration=@{
+        disablePasswordAuthentication=$true
+        provisionVMAgent=$true;provisionVMConfigAgent=$true
+        ssh=@{publicKeys=@(@{
+          path="/home/$($Credential.UserName)/.ssh/authorized_keys"
+          keyData=(Get-Content "$Key.pub" -Raw).Trim()
+        })}
+      }
+    }
+    networkProfile=@{networkInterfaces=@(@{id=$NicId})}
+    storageProfile=@{imageReference=@{id=$ImageId};vmConfigStoragePathId=$Storage}
+    securityProfile=@{enableTPM=$false;uefiSettings=@{secureBootEnabled=$true}}
+  }
+}
+$Uri = "https://management.azure.com$MachineId/providers/Microsoft.AzureStackHCI/virtualMachineInstances/default?api-version=2024-01-01"
+$Result = Invoke-RestMethod -Method Put -Uri $Uri -Headers $Headers `
+  -ContentType 'application/json' -Body ($Body | ConvertTo-Json -Depth 12)
+Remove-Variable Body,Credential,Token
+# Poll the existing resource; do not submit another create while Accepted/Provisioning.
+$Deadline = (Get-Date).AddMinutes(30)
+while ($Result.properties.provisioningState -notin @('Succeeded','Failed','Canceled')) {
+  if ((Get-Date) -gt $Deadline) { throw 'Still pending; inspect this operation before retrying.' }
+  Start-Sleep -Seconds 20
+  $Result = Invoke-RestMethod -Uri $Uri -Headers $Headers
+}
+if ($Result.properties.provisioningState -ne 'Succeeded') {
+  throw 'VM provisioning failed. Read the resource error without exposing secrets.'
+}
+Remove-Variable Headers
+az connectedmachine show --subscription $Sub --resource-group $Rg `
+  --name $VmName --query status -o tsv</code></pre>
+<p>Require the VM Running and the guest Arc agent Connected, not just a created parent machine resource. In the local cluster, find the actual Hyper-V VM and cluster role rather than assuming the ARM vmId equals the Hyper-V VMId. The recorded lab exposed different identifiers at those layers.</p>
+<figure><img alt="Redacted Azure portal view of the recorded Ubuntu Arc VM" src="assets/vm-overview.png"/><figcaption>Recorded Ubuntu VM overview. Subscription, account and unique identifier values are masked. This image proves neither a new deployment nor application continuity.</figcaption></figure>
+<h3>5.6 Install the separate simple NGINX application</h3>
+<p>Open a guest shell with <code>az ssh arc</code> as shown in chapter6. Download the script from the guide's <a download="" href="code/install-vm-web.sh">code directory</a>, inspect it locally, then run it inside the Ubuntu guest. Do not run it on a cluster node or an existing production web server without reviewing the changes. The website is a static guest-identity snapshot generated at installation and boot, not a dynamic VM-owner detector.</p>
+<pre><code class="language-bash"># Inside only your authorized Ubuntu workload guest:
+curl --fail --show-error --location \
+  https://ibranibeny.github.io/azure-local-landing-zone-l400/code/install-vm-web.sh \
+  --output install-vm-web.sh
+less install-vm-web.sh
+# Run only after reviewing the downloaded file:
+sudo bash install-vm-web.sh
+curl --fail http://127.0.0.1:8081/
+sudo systemctl status azure-local-nginx-demo.service --no-pager</code></pre>
+<details open=""><summary>Complete VM NGINX installation code</summary>
+<pre><code class="language-bash">#!/usr/bin/env bash
+# Install a separate, loopback-only NGINX identity demonstration on Ubuntu.
+set -euo pipefail
+umask 022
+
+if [[ ${EUID} -ne 0 ]]; then
+    printf 'Run this reviewed script with sudo bash install-vm-web.sh\n' &gt;&amp;2
+    exit 1
+fi
+
+. /etc/os-release
+if [[ ${ID} != ubuntu || ! ${VERSION_ID} =~ ^(22\.04|24\.04)$ ]]; then
+    printf 'Supported guest operating systems: Ubuntu 22.04 and 24.04 LTS.\n' &gt;&amp;2
+    exit 1
+fi
+
+site=/etc/nginx/conf.d/azure-local-nginx-demo.conf
+marker='# Managed by install-vm-web.sh (Azure Local demo).'
+if [[ -L ${site} ]]; then
+    printf 'Refusing to replace a symbolic link: %s\n' "${site}" &gt;&amp;2
+    exit 1
+fi
+if [[ -e ${site} ]] &amp;&amp; ! grep -Fxq "${marker}" "${site}"; then
+    printf 'Refusing to overwrite an unmanaged NGINX configuration: %s\n' "${site}" &gt;&amp;2
+    exit 1
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+existing_nginx=false
+if command -v nginx &gt;/dev/null 2&gt;&amp;1; then existing_nginx=true; fi
+apt-get update
+apt-get install -y --no-install-recommends nginx python3 curl iproute2
+if [[ ${existing_nginx} == false &amp;&amp; -L /etc/nginx/sites-enabled/default ]] &amp;&amp;
+   [[ $(readlink -f /etc/nginx/sites-enabled/default) == /etc/nginx/sites-available/default ]]; then
+    rm /etc/nginx/sites-enabled/default
+fi
+
+install -d -o root -g root -m 0755 \
+    /usr/local/lib/azure-local-nginx-demo \
+    /var/www/azure-local-nginx-demo
+
+cat &gt; /usr/local/lib/azure-local-nginx-demo/render-identity.py &lt;&lt;'PY'
+#!/usr/bin/env python3
+"""Render a guest identity snapshot; this does not discover cluster ownership."""
+import datetime
+import html
+import json
+import pathlib
+import platform
+import socket
+import subprocess
+
+
+def command(*args):
+    return subprocess.check_output(args, text=True, timeout=10).strip()
+
+
+interfaces = json.loads(command("ip", "-j", "-4", "address", "show", "scope", "global"))
+addresses = [
+    (interface["ifname"], address["local"])
+    for interface in interfaces
+    for address in interface.get("addr_info", [])
+    if address.get("family") == "inet" and address.get("scope") == "global"
+]
+fqdn_result = subprocess.run(
+    ["hostname", "--fqdn"], capture_output=True, text=True, timeout=10, check=False
+)
+fqdn = fqdn_result.stdout.strip() if fqdn_result.returncode == 0 else socket.getfqdn()
+fields = [
+    ("Guest hostname", socket.gethostname()),
+    ("Guest FQDN (local resolver result)", fqdn),
+    ("Guest kernel", platform.release()),
+    ("Guest boot ID", pathlib.Path("/proc/sys/kernel/random/boot_id").read_text().strip()),
+    ("Snapshot generated (UTC)", datetime.datetime.now(datetime.timezone.utc).isoformat()),
+]
+fields.extend((f"Guest IPv4 on {interface}", address) for interface, address in addresses)
+if not addresses:
+    fields.append(("Guest IPv4", "No global IPv4 address at snapshot time"))
+rows = "\n".join(
+    f"&lt;tr&gt;&lt;th scope=\"row\"&gt;{html.escape(label)}&lt;/th&gt;&lt;td&gt;{html.escape(value)}&lt;/td&gt;&lt;/tr&gt;"
+    for label, value in fields
+)
+document = (
+    "&lt;!doctype html&gt;\n&lt;html lang=\"en\"&gt;&lt;head&gt;&lt;meta charset=\"utf-8\"&gt;"
+    "&lt;meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"&gt;"
+    "&lt;title&gt;Azure Local guest identity snapshot&lt;/title&gt;&lt;/head&gt;&lt;body&gt;"
+    "&lt;h1&gt;Ubuntu VM: NGINX demonstration&lt;/h1&gt;"
+    "&lt;p&gt;This is a static guest snapshot, regenerated at installation and each boot. "
+    "It is not live telemetry and does not identify the owning Hyper-V node.&lt;/p&gt;"
+    "&lt;table&gt;&lt;caption&gt;Guest identity at snapshot time&lt;/caption&gt;&lt;tbody&gt;"
+    + rows
+    + "&lt;/tbody&gt;&lt;/table&gt;"
+    "&lt;p&gt;For a fresh snapshot, restart azure-local-nginx-demo.service inside this guest. "
+    "Verify cluster ownership separately in Failover Cluster Manager.&lt;/p&gt;"
+    "&lt;/body&gt;&lt;/html&gt;\n"
+)
+destination = pathlib.Path("/var/www/azure-local-nginx-demo/index.html")
+destination.write_text(document, encoding="utf-8")
+destination.chmod(0o644)
+PY
+chmod 0644 /usr/local/lib/azure-local-nginx-demo/render-identity.py
+
+cat &gt; /etc/systemd/system/azure-local-nginx-demo.service &lt;&lt;'UNIT'
+[Unit]
+Description=Generate the Azure Local NGINX guest identity snapshot
+Wants=network-online.target
+After=network-online.target
+Before=nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/azure-local-nginx-demo/render-identity.py
+RemainAfterExit=yes
+User=root
+Group=root
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/www/azure-local-nginx-demo
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat &gt; "${site}" &lt;&lt;'NGINX'
+# Managed by install-vm-web.sh (Azure Local demo).
+server {
+    listen 127.0.0.1:8081;
+    server_name _;
+    server_tokens off;
+    root /var/www/azure-local-nginx-demo;
+    index index.html;
+    access_log off;
+    add_header Cache-Control "no-store" always;
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+NGINX
+
+python3 -m py_compile /usr/local/lib/azure-local-nginx-demo/render-identity.py
+nginx -t
+systemctl daemon-reload
+systemctl enable azure-local-nginx-demo.service
+systemctl restart azure-local-nginx-demo.service
+systemctl enable nginx.service
+if systemctl is-active --quiet nginx.service; then
+    systemctl reload nginx.service
+else
+    systemctl start nginx.service
+fi
+curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8081/ &gt; /dev/null
+printf '%s\n' \
+    'Ready: http://127.0.0.1:8081/ (inside this guest only).' \
+    'Snapshot refresh: sudo systemctl restart azure-local-nginx-demo.service' \
+    'Existing NGINX sites and the Python application on port 8080 are unchanged.' \
+    'Review other listeners: sudo ss -ltnp. Existing NGINX sites were not removed.'
+</code></pre>
+</details>
+<p>Chapter6 forwards local8089 to guest8081 for this NGINX example. The recorded Python observer remains on guest8080 and local8088. Keep the ports distinct. If a fresh NGINX package enables a stock port80 site, the installer handles only that new stock default; review all listeners and your guest firewall. No public application endpoint is created by these examples.</p>
+<h3>5.7 Validate image, control-plane and application state independently</h3>
+<table>
+<caption>Acceptance gates and narrowly scoped recovery</caption>
+<thead><tr><th>Gate / execution context</th><th>Required output</th><th>Failure and safe response</th></tr></thead>
+<tbody>
+<tr><td>Isolated Ubuntu builder → approved package/ISO sources.</td><td>Checksum recorded, Azure kernel and Hyper-V support verified, NoCloud configuration, builder keys/account removed, generalized disk copied only after shutdown.</td><td>Boot/cloud-init failure: rebuild the image artifact in the builder. Do not clean identity files on an existing workload.</td></tr>
+<tr><td>Azure client → ARM HTTPS443 → bridge/controller.</td><td>Image/NIC/VM provisioning Succeeded; operation state tied to the same requested resources.</td><td>Timeout/401/403: reauthenticate or resolve authorization and read the existing operation; never blindly repeat PUT/create.</td></tr>
+<tr><td>Cluster and guest management.</td><td>Actual clustered role Running/Online on shared CSV; guest IP matches planned NIC; cloud-init completed; Arc agent Connected and SSH service available.</td><td>ARM success but no guest IP: inspect image datasource, guest logs, VLAN and DNS before blaming the portal.</td></tr>
+<tr><td>Ubuntu guest loopback and client loopback forward.</td><td>NGINX configuration valid, expected8081 listener/service active, HTTP response in guest and then local8089.</td><td>Guest curl fails: diagnose NGINX/service first. Guest passes but client fails: diagnose the SSH relay/forward, not the VM disks.</td></tr>
+</tbody>
+</table>
+<p>Outbound package HTTPS and name resolution are guest data-plane dependencies; Azure control-plane success does not prove them. Arc SSH additionally needs the documented connected agent, HybridConnectivity endpoint/service configuration, supported client extension, guest sshd and authorized key. The first connection may configure remote-access resources, so it is not necessarily read-only. Follow <a href="https://learn.microsoft.com/azure/azure-arc/servers/ssh-arc-overview">Arc SSH permissions and prerequisites</a>; this example uses a local guest user/key, not an implicitly configured Entra guest-login extension. Keep relay permissions scoped to the target and private keys owner-restricted; use a passphrase/approved agent for durable access.</p>
+<p>The <a href="https://learn.microsoft.com/azure/azure-local/manage/virtual-machine-operations?view=azloc-2609">supported VM operation matrix</a> is the change boundary. Create/delete/reconfigure managed resources through supported Azure interfaces. Do not locally change an existing managed NIC's VLAN, convert its disk type, clone/copy the VM, or storage-live-migrate it. For a supported network change, create the appropriate new logical-network/NIC resource and replace the attachment through the documented control-plane workflow. Same-cluster live migration is a separately allowed local operation in chapter6, not permission for arbitrary local reconfiguration.</p>
+<p><strong>Rollback and handoff:</strong> preserve the reviewed previous NGINX configuration and validate it before restarting the service; remove only this demo's files/unit if abandoning it, never an unrelated site's configuration. If VM creation fails, retain sanitized operation errors and inventory dependent disks/NIC/image resources before approved control-plane cleanup. The platform owner protects CSV capacity and supportability; the workload owner patches Ubuntu/NGINX, rotates keys and tests application-consistent restore. Set RPO/RTO and demonstrate recovery to an isolated target; CSV/S2D redundancy, checkpoints and image copies are not an independently recoverable application backup.</p>
+<p>Retain redacted image hashes/version, configuration approval, provisioning/guest/HTTP timestamps, listener bindings and restore results. Label the downloaded NGINX implementation <strong>proposed until the reader installs and verifies it</strong>. Its install/boot-time identity snapshot does not update on every refresh, prove process continuity, or identify the current hypervisor. The historical Python observer and its evidence must remain separate.</p>
+<h3>Sources</h3>
+<ul><li><a href="https://learn.microsoft.com/azure/azure-local/manage/virtual-machine-image-linux-sysprep?view=azloc-2609">Prepare Ubuntu images for Azure Local</a> and <a href="https://learn.microsoft.com/azure/azure-local/manage/virtual-machine-image-local-share?view=azloc-2609">import local shared images</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/templates/microsoft.azurestackhci/2024-01-01/virtualmachineinstances">VirtualMachineInstances stable ARM schema</a> and <a href="https://learn.microsoft.com/azure/azure-local/manage/create-arc-virtual-machines?view=azloc-2609">create Arc-managed VMs</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/azure-local/manage/connect-arc-vm-using-ssh?view=azloc-2609">Private Arc SSH</a> and <a href="https://ubuntu.com/server/docs/how-to/web-services/install-nginx/">Ubuntu NGINX guidance</a>.</li></ul>
+
+<div class="pager"><a class="button secondary" href="04-aks.html">Previous: Deploy AKS Local and NGINX</a><a class="button" href="06-migrate.html">Next: Simulate Live Migration</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>

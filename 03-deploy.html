@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deploy Azure Local: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Deploy Azure Local | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html" aria-current="page"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Deploy Azure Local</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>3. Deploy Azure Local</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Deploy Azure Local; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-03.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Deploy Azure Local" src="assets/architecture-03.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="deploy">3. Deploy Azure Local: separate production from LocalBox</h2>
+<div class="warning"><p><strong>Read the media stop condition before creating resources.</strong> The recorded lab encountered HTTP 409 while obtaining the prepared 2608 VHDX. Its later ISO-to-Generation-2 recovery was custom work, not an unmodified, repeatable LocalBox deployment. A public Git commit does not guarantee that publisher-hosted images remain downloadable.</p></div>
+<h3>Path A — physical deployment, a separate scope</h3>
+<ol class="steps">
+<li>Select validated hardware and a supported network reference pattern with your OEM. Complete the <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prerequisites?view=azloc-2609">deployment checklist</a>: firmware, drives, cabling, outbound endpoints, permissions, DNS, time, and reserved IPs.</li>
+<li>For the AD-based path, prepare the dedicated organizational unit and deployment account using <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-prep-active-directory?view=azloc-2609">Microsoft's AD preparation procedure</a>. Keep identity and recovery dependencies independent of the new cluster.</li>
+<li>Use the OEM-supported image where supplied. Otherwise download the correct release through Azure Local's portal software-download workflow, personally review its license/privacy terms, and install the OS on each machine. Configure management networking, DNS, and time; follow the release-specific update restrictions rather than applying arbitrary Windows updates.</li>
+<li>Assign the documented deployment roles and register each machine with Azure Arc through the <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-introduction?view=azloc-2609">appropriate gateway or direct-connect workflow</a>.</li>
+<li>In Azure Local → Create instance, select the machines and identity provider, install required extensions, and validate the machines. Supply Key Vault, network intents, infrastructure IP pool, deployment credentials, storage, and security settings. Complete validation before deployment; monitor instance deployment steps to completion.</li>
+<li>Verify node, storage, bridge, and custom-location health. Then design workload protection and maintenance. Do not run LocalBox's nested-host or storage-bootstrap scripts on physical production machines.</li>
+</ol>
+<h3>Path B — pinned LocalBox learning deployment</h3>
+<p>The following commands are instructions for an authorized reader, <strong>not deployments performed while writing this guide</strong>. Use a dedicated disposable resource group and PowerShell 7. Install approved Git, <a href="https://learn.microsoft.com/en-us/cli/azure/install-azure-cli">Azure CLI</a>, <a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/install">Bicep CLI</a>, and <a href="https://learn.microsoft.com/en-us/powershell/azure/install-azure-powershell">Az PowerShell</a> first. Do not record credential-entry sessions or publish raw terminal output.</p>
+<ol class="steps">
+<li>
+<h3>Authenticate and check regional capacity</h3>
+<p>Enter your own identifiers at runtime. Verify policy and role-assignment permissions with your administrator; Contributor alone cannot grant all roles used by the template. Confirm at least 32 available regional and ESv6-family vCPUs, SKU availability, and nested-virtualization capability. Quota is not a capacity reservation.</p>
+<pre><code class="language-powershell">$ErrorActionPreference = 'Stop'
+$subscription = Read-Host 'Subscription ID'
+$tenant = Read-Host 'Tenant ID'
+$rg = Read-Host 'Dedicated lab resource-group name'
+$location = 'australiaeast'
+az version
+az bicep version
+az login --tenant $tenant --output none
+if ($LASTEXITCODE -ne 0) { throw 'Azure CLI login failed.' }
+az account set --subscription $subscription
+if ($LASTEXITCODE -ne 0) { throw 'Subscription selection failed.' }
+Connect-AzAccount -Tenant $tenant -Subscription $subscription | Out-Null
+Set-AzContext -Tenant $tenant -Subscription $subscription | Out-Null
+az vm list-usage --location $location --output table
+az vm list-skus --location $location --size Standard_E32s_v6 `
+  --all --query "[].{Name:name,Restrictions:restrictions}" --output json</code></pre>
+</li>
+<li>
+<h3>Register providers and resolve the provider identity</h3>
+<p>These registration commands change subscription state. Run only with approval, and stop on failures. The required <code>spnProviderId</code> is the existing Microsoft.AzureStackHCI resource provider's <em>directory object ID</em>, not a new application secret. If lookup is denied or ambiguous, obtain the correct object ID from the tenant administrator; do not select an arbitrary match.</p>
+<pre><code class="language-powershell">$providers = @(
+  'Microsoft.HybridCompute','Microsoft.GuestConfiguration',
+  'Microsoft.HybridConnectivity','Microsoft.AzureStackHCI',
+  'Microsoft.Kubernetes','Microsoft.KubernetesConfiguration',
+  'Microsoft.ExtendedLocation','Microsoft.ResourceConnector',
+  'Microsoft.HybridContainerService','Microsoft.Attestation',
+  'Microsoft.Storage','Microsoft.Insights','Microsoft.KeyVault',
+  'Microsoft.Compute','Microsoft.Network','Microsoft.OperationalInsights',
+  'Microsoft.OperationsManagement','Microsoft.Authorization'
+)
+foreach ($provider in $providers) {
+  az provider register --namespace $provider --wait --output none
+  if ($LASTEXITCODE -ne 0) { throw "Provider registration failed: $provider" }
+}
+$providerIds = @(az ad sp list `
+  --display-name 'Microsoft.AzureStackHCI Resource Provider' `
+  --query "[].id" --output tsv)
+if ($LASTEXITCODE -ne 0 -or $providerIds.Count -ne 1) {
+  throw 'Ask the tenant administrator to resolve the HCI provider object ID.'
+}
+$providerId = $providerIds[0]</code></pre>
+</li>
+<li>
+<h3>Clone the exact public source and preflight image access</h3>
+<p>Run from a new working directory. At this revision the real entry point is <code>azure_jumpstart_localbox\bicep\main.bicep</code>. Do not blindly follow a newer documentation example or reuse its example password. Pin both the checkout and the runtime artifact reference.</p>
+<pre><code class="language-powershell">$revision = 'e2c114eed98d18105dcf3a718bef965d5112781b'
+git clone https://github.com/microsoft/azure_arc.git .\azure_arc
+if ($LASTEXITCODE -ne 0) { throw 'Clone failed.' }
+git -C .\azure_arc checkout --detach $revision
+if ($LASTEXITCODE -ne 0) { throw 'Checkout failed.' }
+$actual = git -C .\azure_arc rev-parse HEAD
+if ($actual -ne $revision) { throw 'Unexpected source revision.' }
+$base = '.\azure_arc\azure_jumpstart_localbox'
+$script = "$base\artifacts\PowerShell\New-LocalBoxCluster.ps1"
+$media = @(Select-String -Path $script -Pattern '^\s*azcopy cp ' |
+  ForEach-Object { [regex]::Match($_.Line, 'https://[^''"\s]+').Value })
+if ($media.Count -eq 0) { throw 'Review upstream media acquisition manually.' }
+foreach ($uri in $media) {
+  try {
+    Invoke-WebRequest -Uri $uri -Method Head -TimeoutSec 30 |
+      Select-Object StatusCode
+  } catch {
+    throw 'Publisher media preflight failed. Stop; follow the media boundary below.'
+  }
+}</code></pre>
+<div class="warning"><p><strong>Media boundary:</strong> on 409, denied public access, missing media, or a checksum mismatch, stop. Do not bypass access controls, substitute an unofficial image, or rerun storage initialization. Use <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/download-23h2-software?view=azloc-2609">the official ISO download</a> and <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-install-os?view=azloc-2609">manual OS installation guidance</a> only after the user approves applicable terms. Preparing a compatible nested Gen2 image and recovery plan is separate engineering, not a guaranteed fallback command here. A newer ISO may also require a different deployment workflow.</p></div>
+</li>
+<li>
+<h3>Build, validate, preview, then create the foundation</h3>
+<p>Pass the password as a SecureString in memory, not a CLI argument or plaintext parameter file. Choose a unique disposable local administrator credential meeting the upstream restrictions; official guidance calls for at least 14 characters and complexity, and LocalBox warns against the dollar symbol. The example disables autologon, automatic cluster deployment, and automatic upgrades so each stage can be inspected.</p>
+<pre><code class="language-powershell">$admin = Get-Credential -Message 'Unique disposable LocalBox local administrator'
+if ($admin.Password.Length -lt 14) { throw 'Use at least 14 characters.' }
+$parameters = @{
+  tenantId = $tenant
+  spnProviderId = $providerId
+  windowsAdminUsername = $admin.UserName
+  windowsAdminPassword = $admin.Password
+  githubAccount = 'microsoft'
+  githubBranch = $revision
+  location = $location
+  azureLocalInstanceLocation = 'australiaeast'
+  vmSize = 'Standard_E32s_v6'
+  deployBastion = $true
+  vmAutologon = $false
+  autoDeployClusterResource = $false
+  autoUpgradeClusterResource = $false
+  governResourceTags = $false
+  enableAzureSpotPricing = $false
+}
+az bicep build --file "$base\bicep\main.bicep" `
+  --outfile .\localbox.compiled.json
+if ($LASTEXITCODE -ne 0) { throw 'Bicep build failed.' }
+New-AzResourceGroup -Name $rg -Location $location | Out-Null
+$deployment = @{
+  ResourceGroupName = $rg
+  TemplateFile = (Resolve-Path .\localbox.compiled.json).Path
+  TemplateParameterObject = $parameters
+  Mode = 'Incremental'
+  ErrorAction = 'Stop'
+}
+$errors = @(Test-AzResourceGroupDeployment @deployment)
+if ($errors.Count -gt 0) { $errors; throw 'Resolve validation errors first.' }
+New-AzResourceGroupDeployment @deployment -Name 'localbox-plan' -WhatIf
+# STOP and review the proposed resources, access, and cost before continuing.
+New-AzResourceGroupDeployment @deployment -Name 'localbox-foundation' |
+  Select-Object DeploymentName, ProvisioningState</code></pre>
+<p>The public template supports the parameters above. <code>governResourceTags=false</code> avoids tenant-specific governance-bypass tags; follow your organization's actual policy. The compiled JSON contains template definitions, not the supplied password. However, <strong>upstream guest automation still materializes credentials in guest configuration/parameter artifacts</strong>, and base64 is not encryption. This is a disposable lab, not a hardened secret-management pattern. Restrict access, never commit generated guest files or log bundles, and rotate/discard credentials after use. Pinning the repository does not pin every external installer or image.</p>
+</li>
+<li>
+<h3>Connect through Bastion and let guest setup finish once</h3>
+<p>In the portal open LocalBox-Client → Connect → Bastion and enter the credential privately. No public RDP opening is required. The first interactive sign-in triggers the upstream logon automation: outer storage, nested management and nodes, router/domain services, Arc onboarding, and generated cluster configuration. Budget several hours, not minutes.</p>
+<pre><code class="language-powershell"># Elevated PowerShell on LocalBox-Client; inspect, do not rerun bootstrap.
+Get-ScheduledTask -TaskName 'LocalBoxLogonScript' -ErrorAction SilentlyContinue |
+  Select-Object TaskName, State
+Get-VM | Select-Object Name, State
+Get-ChildItem 'C:\LocalBox\Logs' -Filter '*.log' |
+  Select-Object Name, LastWriteTime</code></pre>
+<p>Inspect logs privately for the first failure. Do not run LocalBoxLogonScript again merely because a later stage failed: its storage-pool, virtual-disk, and partition operations are not a safe general-purpose retry mechanism. Confirm both AzLHOST nodes appear as connected Arc machines and that generated parameters contain no staging placeholders before cluster validation.</p>
+</li>
+<li>
+<h3>Validate the instance, then explicitly deploy it</h3>
+<p>Follow the <a href="https://jumpstart.azure.com/azure_jumpstart_localbox/manual_deployment">official manual LocalBox workflow</a> after prerequisites succeed. Its ARM <code>deploymentMode=Validate</code> starts real environment validation; it is different from template-only validation and what-if. Review the generated configuration privately, use the documented secure credential fields, then wait for successful validation before selecting <strong>Deploy now</strong>. Monitor the instance's Settings → Deployments until every stage succeeds. Do not publish or store an additional plaintext copy of the generated secret-bearing parameters.</p>
+<figure class="evidence">
+<pre>Template validation / what-if
+          → outer Azure resources
+          → nested setup and Arc onboarding
+          → Azure Local deploymentMode: Validate
+          → Azure Local deploymentMode: Deploy
+          → platform readiness checks
+          → workload provisioning and guest checks</pre>
+<figcaption>Distinct readiness gates: outer ARM success is not Azure Local deployment success, and platform success is not application success.</figcaption>
+</figure>
+</li>
+<li>
+<h3>Verify the platform before proceeding</h3>
+<p>On LocalBox-Client, use PowerShell Direct with the appropriate node administrator credential. Expect both nodes Up, healthy storage, available CSVs, and an operational bridge/custom location in Azure. Investigate unhealthy results instead of proceeding to workload creation.</p>
+<pre><code class="language-powershell">$nodeCredential = Get-Credential -Message 'Azure Local node administrator'
+Invoke-Command -VMName 'AzLHOST1' -Credential $nodeCredential -ScriptBlock {
+  Get-ClusterNode | Select-Object Name, State
+  Get-StoragePool -IsPrimordial $false |
+    Select-Object FriendlyName, HealthStatus, OperationalStatus
+  Get-VirtualDisk | Select-Object FriendlyName, HealthStatus, OperationalStatus
+  Get-ClusterSharedVolume | Select-Object Name, State
+}</code></pre>
+</li>
+</ol>
+<table class="evidence">
+<caption>How to interpret the recorded lab</caption>
+<thead><tr><th scope="col">Statement</th><th scope="col">Evidence boundary</th></tr></thead>
+<tbody>
+<tr><td>Recorded lab outcomes</td><td>Deployment evidence from 16 October; update Installed, both nodes Up, and Ubuntu on AzLHOST1 recorded 17 October 2026. These are not live 18 October health guarantees.</td></tr>
+<tr><td>Unmodified reproduction</td><td>Not established: prepared-image access failed and recovery required custom ISO/Gen2 preparation.</td></tr>
+<tr><td>Migration</td><td>Instructions and target readiness do not establish that a manual VM migration completed.</td></tr>
+</tbody>
+</table>
+<h3>3.1 Execute deployment as a controlled platform change</h3>
+<p><strong>Inputs and owners:</strong> require chapter2's accepted address/capacity plan, approved AD OU/deployment account, supported release/media provenance, endpoint allowlist, reserved infrastructure pool, and a recovery contact independent of the new cluster. The AD-based LocalBox flow is the path actually described; do not mix local-identity/Key Vault instructions into its domain configuration. The platform owner approves the change, identity/network owners attest dependencies, and an authorized Azure operator supplies the correct tenant/subscription context. Directory lookup, Azure resource writes, role assignment, local administrative execution, and AD delegation are separate privileges; neither Entra tenant administration nor Domain Admin is a blanket prerequisite to grant.</p>
+<p>Map <strong>resource organization</strong> to the proposed <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/">ALZ Local</a> Azure Local Clusters subscription; <strong>identity</strong> to scoped deployment and local cluster rights; <strong>connectivity</strong> to node/bridge endpoint tests; <strong>security/governance</strong> to compatible policies and protected credentials; <strong>management</strong> to readiness/update/recovery; <strong>automation</strong> to source pinning and gated replay; and <strong>tenant/billing</strong> to the approved disposable scope. The <a href="architecture.html">architecture target</a> is not implemented by this lab's one resource group. Central Security, Management, Identity and Connectivity subscriptions remain proposed shared services, not deployment outputs.</p>
+<table>
+<caption>Do not collapse these execution contexts or completion signals</caption>
+<thead><tr><th>Context and action</th><th>Output / success gate</th><th>Failure and safe response</th></tr></thead>
+<tbody>
+<tr><td>Management workstation: template compilation, ARM validation and what-if over HTTPS443.</td><td>Reviewed template, providers, scope, proposed changes, and no unexpected privilege/network expansion.</td><td>Policy/authorization/region errors: fix the approved input; template success does not test node networking.</td></tr>
+<tr><td>Outer Windows guest: first-logon nested bootstrap with local administrator rights.</td><td>Expected nested machines and logs, no unresolved media/bootstrap error, Arc onboarding complete.</td><td>409 or failed storage preparation: preserve first error and halt; do not rerun destructive initialization.</td></tr>
+<tr><td>Azure deployment orchestration → nodes and bridge.</td><td>Real environment validation passes, then deployment steps complete and bridge/custom location are healthy.</td><td>Accepted/Running or client timeout: inspect the same operation/deployment; do not race it with another create.</td></tr>
+<tr><td>Authorized node/cluster console: read-only platform inspection.</td><td>Both nodes Up, CSVs Online, healthy pools/virtual disks, consistent network intents, available capacity.</td><td>Storage repair, failed intent, or node degradation: stop progressing to new workload deployment and resolve the platform condition with its owner. Do not automatically stop existing workloads.</td></tr>
+</tbody>
+</table>
+<p>Cloud control-plane HTTPS, local management/AD communication, and SMB storage traffic are different failure paths. Test DNS/time and documented destinations from nodes and the bridge/proxy context, not solely your laptop. Follow the <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements?view=azloc-2609">official firewall requirements</a>: infrastructure Arc Private Link Scopes and HTTPS inspection are not supported. An ARM resource's region or management-group placement provides neither physical connectivity nor private routing.</p>
+<h3>3.2 Preserve supportability, rollback boundaries and handoff evidence</h3>
+<p>During validation, compare every host's Network ATC intent and resulting switch configuration. Do not “fix” one converged switch or migration-network order with a standalone Hyper-V setting; use the supported <a href="https://learn.microsoft.com/azure/azure-local/manage/manage-network-atc?view=azloc-2609">Network ATC workflow</a>. Begin policy rollout in Audit against the actual provider/API versions and exercise bridge creation, upgrades and guest provisioning before enforcement. A universal Deny requiring public network access disabled is not a valid substitute for a tested Azure Local baseline.</p>
+<p>Separate <strong>resume</strong> from <strong>rollback</strong>. Resume only a documented failed step after its dependency is repaired and no competing operation remains. Before workload data exists, an approved disposable-lab rebuild may be the safest recovery, but it is a new deployment with explicit resource/cost cleanup, not an in-place storage reset. After workloads exist, preserve configuration/data and follow supported repair or restore procedures with the platform/OEM support owner. Never delete the resource group as an automatic error handler, detach managed disks locally, or assume an incremental ARM deployment undoes guest-side changes.</p>
+<p>For handoff, retain redacted operation timestamps/IDs, release and update identity, per-node/CSV health, bridge/extension/custom-location results, network-intent consistency, free capacity, and outstanding exceptions. Record the historical 17 October Installed/Up observations as <strong>observed then</strong>; require fresh checks before the reader's next stage. Monitoring delivery, alert ownership, privileged audit collection, application-consistent backup and a restore-tested RPO/RTO are separate acceptance items. Unless demonstrated, label them <strong>unverified</strong>; successful deployment does not establish recovery or a configured security service.</p>
+<h3>Sources</h3>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-introduction?view=azloc-2609">Microsoft Learn: physical deployment sequence</a>; <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deploy-via-portal?view=azloc-2609">portal deployment</a>; <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-arc-register-server-permissions?view=azloc-2609">providers and permissions</a>.</li>
+<li><a href="https://github.com/microsoft/azure_arc/tree/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox">Pinned public LocalBox source</a>: <a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/bicep/main.bicep">Bicep parameters</a>, <a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/artifacts/PowerShell/New-LocalBoxCluster.ps1">image acquisition and Validate/Deploy stages</a>, and <a href="https://github.com/microsoft/azure_arc/blob/e2c114eed98d18105dcf3a718bef965d5112781b/azure_jumpstart_localbox/artifacts/PowerShell/LocalBoxLogonScript.ps1">storage-bootstrap retry risk</a>.</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deploy-powershell">Microsoft Learn: parameter objects and Azure PowerShell deployments</a>; <a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deploy-what-if">what-if</a>; <a href="https://jumpstart.azure.com/azure_jumpstart_localbox/deployment_az">LocalBox Bicep deployment</a>.</li>
+</ul>
+
+<div class="pager"><a class="button secondary" href="02-scenarios.html">Previous: Choose the deployment scenario</a><a class="button" href="04-aks.html">Next: Deploy AKS Local and NGINX</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>

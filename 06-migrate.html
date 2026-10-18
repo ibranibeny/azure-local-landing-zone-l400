@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Simulate Live Migration: a sequential Azure Local learning lab with masked identity fields, official references, and private access.">
+<title>Simulate Live Migration | Azure Local Lab</title>
+<link rel="icon" href="data:,">
+<script>(() => {
+  const param = new URLSearchParams(window.location.search).get("scoutTheme");
+  const theme =
+    param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", theme);
+})();</script>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead"><a class="brand" href="index.html">AZURE LOCAL / FIELD GUIDE</a><span>L400 deployment and operations</span></header>
+<div class="layout">
+<aside><nav aria-label="Learning path"><a href="index.html">Start here</a><a href="01-overview.html"><span>01</span> Azure Local overview</a><a href="02-scenarios.html"><span>02</span> Choose the deployment scenario</a><a href="03-deploy.html"><span>03</span> Deploy Azure Local</a><a href="04-aks.html"><span>04</span> Deploy AKS Local and NGINX</a><a href="05-vm.html"><span>05</span> Deploy Ubuntu and a web application</a><a href="06-migrate.html" aria-current="page"><span>06</span> Simulate Live Migration</a><a href="architecture.html">L400 architecture / landing zones</a><a href="evidence.html">Masked screenshot evidence</a><a href="downloads.html">Code and masking policy</a></nav><p class="sidebar-note">Read in order. Validate each gate before proceeding. Publishing this guide does not authorize deployment or migration.</p></aside>
+<main id="main">
+<div class="breadcrumbs"><a href="index.html">Azure Local Lab</a> / Simulate Live Migration</div>
+<div class="edition">L400 edition · CAF / landing-zone design mapping · Recorded lab: October 2026 · Identifiers masked</div>
+<h1>6. Simulate Live Migration</h1>
+<figure class="architecture-view structured-diagram"><div class="diagram-toolbar"><span>Readable vector view · pan horizontally on smaller screens</span><a href="assets/architecture-05.drawio.svg" rel="noopener" target="_blank">Open full-size SVG</a></div><div aria-label="Editable L400 Azure-icon engineering view for Simulate Live Migration; scroll horizontally if needed" class="diagram-frame" role="region" tabindex="0"><a href="assets/architecture-05.drawio.svg" rel="noopener" target="_blank"><img alt="Editable L400 Azure-icon engineering view for Simulate Live Migration" src="assets/architecture-05.drawio.svg"/></a></div><figcaption>Native draw.io vector SVG. Click to open full-size and zoom; save and open in draw.io to edit. Recorded lab and proposed landing-zone controls are labeled separately. <a href="architecture.html">Read all six architecture views and the control mapping</a>.</figcaption></figure><h2 id="migration">6. Connect privately and perform your own Live Migration</h2>
+<p>Live Migration is a planned move of a running clustered VM between healthy nodes. Keep both AzLHOST1 and AzLHOST2 on. This guide does not ask you to stop a server or simulate an unexpected host failure. Same-cluster Live Migration uses supported local cluster tools; there is no native Live Migration button in the Azure Local VM portal blade.</p>
+<div class="warning"><strong>Evidence limit:</strong> the recorded screenshot shows the correct menu, before destination selection. It does not establish that a manual move completed, that an application never restarted, or that downtime was zero. Measure the actual exercise you perform.</div>
+<h3>6.1 Understand the access layers</h3>
+<table><thead><tr><th>Target</th><th>Access path</th><th>Credential field retained</th></tr></thead><tbody>
+<tr><td>Azure Portal</td><td>Your authorized Azure account</td><td>[MASKED: Azure account]</td></tr>
+<tr><td>LocalBox-Client outer VM</td><td>Portal → Connect → Bastion → VM Password</td><td>[MASKED: Windows administrator / password]</td></tr>
+<tr><td>Azure Local nodes / cluster</td><td>Authorized domain management console or source-node console</td><td>[MASKED: domain administrator / password]</td></tr>
+<tr><td>Ubuntu workload</td><td>Azure Arc SSH relay plus authorized guest key</td><td>[MASKED: SSH private key]</td></tr>
+</tbody></table>
+<p>Bastion Basic opens the outer LocalBox Windows desktop. Inside it, Hyper-V Manager → AzLHOST1 → Connect opens the actual simulated source server console. In a physical deployment, replace that nested-console step with the server's physical or approved out-of-band console. A management workstation on the secured private network can manage the real cluster; there is no outer LocalBox VM.</p>
+<p>AzLHOST1 is not a permanent master simply because it is named1. Each clustered VM has its own current Owner Node. Azure Arc registration is not a general-purpose VPN or an automatic RDP route. Optional Bastion IP-based hybrid access requires Standard or higher and actual VPN/ExpressRoute routing; the Basic lab does not provide that capability automatically.</p>
+<h3>6.2 Open a CLI-only Ubuntu web tunnel</h3>
+<p>Use PowerShell on your own Windows computer, not Azure Cloud Shell or inside Bastion. Set these variables in each new local terminal. Supply your own identifiers and key authorized during chapter5; never copy a credential cache from another computer.</p>
+<pre><code class="language-powershell">$Sub = Read-Host 'Subscription ID'
+$Tenant = Read-Host 'Tenant ID'
+$Rg = Read-Host 'Existing resource-group name'
+$Key = Join-Path $HOME '.ssh\azure-local-vm'
+$KnownHosts = Join-Path $HOME '.ssh\azure-local-known-hosts'
+$env:AZURE_CONFIG_DIR = Join-Path $HOME '.azure-local-lab'
+az account show --subscription $Sub --query user.name -o tsv
+# If the isolated session has expired, authenticate to the intended tenant:
+# az login --tenant $Tenant --use-device-code
+# az account set --subscription $Sub
+az connectedmachine show --subscription $Sub --resource-group $Rg `
+  --name ubuntu-motion --query status -o tsv
+Get-NetTCPConnection -State Listen -LocalPort 8088,8089 -ErrorAction SilentlyContinue</code></pre>
+<p>Use <strong>one</strong> of the following tunnel targets. Do not open a duplicate on an occupied local port. An existing healthy lab tunnel can be reused.</p>
+<table><thead><tr><th>Application</th><th>Local port</th><th>Guest destination</th></tr></thead><tbody>
+<tr><td>Recorded Python identity observer</td><td>8088</td><td>127.0.0.1:8080</td></tr>
+<tr><td>New NGINX snapshot example from chapter5</td><td>8089</td><td>127.0.0.1:8081</td></tr>
+</tbody></table>
+<pre><code class="language-powershell"># Recorded observer: keep this terminal open.
+az ssh arc --subscription $Sub --resource-group $Rg --name ubuntu-motion `
+  --local-user azureuser --private-key-file $Key --yes -- `
+  -N -L 127.0.0.1:8088:127.0.0.1:8080 `
+  -o BatchMode=yes -o ExitOnForwardFailure=yes `
+  -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$KnownHosts" `
+  -o ServerAliveInterval=20 -o ServerAliveCountMax=3</code></pre>
+<pre><code class="language-powershell"># Alternative for the new NGINX example: use another terminal/port.
+az ssh arc --subscription $Sub --resource-group $Rg --name ubuntu-motion `
+  --local-user azureuser --private-key-file $Key --yes -- `
+  -N -L 127.0.0.1:8089:127.0.0.1:8081 `
+  -o BatchMode=yes -o ExitOnForwardFailure=yes `
+  -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$KnownHosts" `
+  -o ServerAliveInterval=20 -o ServerAliveCountMax=3</code></pre>
+<p><code>-N</code> leaves SSH running without a guest shell; a silent terminal is normal. The first loopback address is on your computer, and the second is resolved inside Ubuntu. Arc supplies the private relay; SSH still validates the guest user/key. No public IP or inbound internet SSH rule is required. The tunnel follows the VM's guest identity rather than a fixed source hypervisor.</p>
+<p>Open http://127.0.0.1:8088/ for the recorded observer or http://127.0.0.1:8089/ for your newly installed NGINX example, on the <strong>same computer</strong> running the corresponding tunnel. Ctrl+C closes only that client tunnel, not the VM or application. Re-run the same command to reconnect.</p>
+<details><summary>Interactive Ubuntu shell, without a helper script</summary><pre><code class="language-powershell">az ssh arc --subscription $Sub --resource-group $Rg --name ubuntu-motion `
+  --local-user azureuser --private-key-file $Key --yes -- `
+  -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$KnownHosts"</code></pre>
+<p>Inside Ubuntu, use <code>hostname</code>, <code>ip -4 address</code>, <code>cat /proc/sys/kernel/random/boot_id</code>, and curl to the intended guest loopback port. Exit the separate shell with <code>exit</code>. Do not expose private keys or paste complete agent logs into the public site.</p></details>
+<h3>6.3 Open the domain-sign-in cluster console through Bastion</h3>
+<ol><li>In Azure Portal open the lab resource group → LocalBox-Client → Connect → Bastion. Select <strong>VM Password</strong>, not Entra sign-in unless you separately configured that method. Enter your Windows lab administrator privately and allow the browser session tab.</li>
+<li>Inside the <strong>remote Windows desktop</strong>, find <strong>Failover Cluster Manager - Domain sign-in</strong>. If its icon is shortened, open File Explorer and browse C:\Users\Public\Desktop. This shortcut is on the remote machine, not your laptop.</li>
+<li>Open it and enter the authorized domain credential at the prompt. An ordinary local administrator of the workgroup outer VM is not automatically a domain cluster administrator.</li>
+<li>In the new console, Connect to Cluster → localboxcluster.jumpstart.local → Roles → ubuntu-motion. Do not keep using an older console that previously received access denied.</li></ol>
+<p>If the shortcut is missing, create it on the remote desktop with New → Shortcut. The field below retains the credential context without publishing the original account value: replace <code>DOMAIN\AUTHORIZED-USER</code> with your authorized cluster account before using the shortcut target. Name it Failover Cluster Manager - Domain sign-in.</p>
+<pre><code class="language-powershell">C:\Windows\System32\runas.exe /netonly /user:DOMAIN\AUTHORIZED-USER "mmc.exe C:\Windows\System32\cluadmin.msc"</code></pre>
+<p>You can also run the same command directly in Command Prompt/PowerShell on the remote desktop. Do not add a password or /savecred to the target. /netonly changes outbound network credentials, so local whoami or Task Manager may still show the desktop account. It does not configure migration delegation or grant new rights.</p>
+<p>The historical0x80070005 failure was corrected by using the existing authorized domain identity rather than expanding cluster ACLs. “Run as administrator” on the local workgroup account alone is not equivalent.</p>
+<h3>6.4 Verify readiness and capture a baseline</h3>
+<ol><li>Require the solution update to be completed, both nodes Up, the Ubuntu role Online, shared CSVs available, sufficient destination capacity, and consistent switch/VLAN configuration.</li>
+<li>Read the actual Owner Node from the cluster. The illustrated forward exercise starts on AzLHOST1; if it is already on AzLHOST2, treat that as the current source and explicitly choose the reverse direction, or stop. Never move it merely to make a screenshot look current. The Installed update, both nodes Up, and Ubuntu on AzLHOST1 were recorded on 17 October 2026, not reverified live on 18 October.</li>
+<li>Keep the web page open. Record hostname, IP, guest boot ID and, for the existing observer, application process start/PID. The NGINX example is a static snapshot: do not treat its install-time timestamp as live telemetry.</li>
+<li>Use the actual cluster Owner Node as host-placement evidence. Guest hostname/IP normally stay the same during migration and cannot identify the hosting physical server by themselves.</li></ol>
+<pre><code class="language-powershell"># Read-only, from an authorized cluster/node management session:
+Get-ClusterNode | Format-Table Name,State
+Get-ClusterSharedVolume | Format-Table Name,State
+Get-ClusterGroup -Name 'ubuntu-motion' | Format-Table Name,OwnerNode,State
+
+# On the local computer, for the recorded observer only:
+$Baseline = Invoke-RestMethod 'http://127.0.0.1:8088/api/status'
+$Baseline.guest
+$Baseline.physical_owner
+$Baseline.application</code></pre>
+<figure><img alt="Redacted historical observer with fresh AzLHOST1 ownership" src="assets/vm-owner.png"/><figcaption>Recorded source baseline. The displayed owner comes from timestamped cluster observation; it is not inferred from the guest hostname. Unique guest identifiers are masked.</figcaption></figure>
+<h3>6.5 You initiate the planned move</h3>
+<ol><li>In Failover Cluster Manager → Roles, select <strong>only ubuntu-motion</strong>.</li>
+<li>Right-click → <strong>Move → Live Migration → Select Node</strong>.</li>
+<li>Select <strong>AzLHOST2</strong> and confirm when you are ready. Do not choose Quick Migration, Shut Down, Turn Off, or an AKS role.</li>
+<li>Wait until the role returns to Running and Owner Node is AzLHOST2.</li>
+<li>Compare the guest/web signals with the baseline. Record any HTTP errors, browser gaps or reconnects rather than assuming zero downtime.</li>
+<li>For the reverse exercise, choose the same Ubuntu role and Live Migration to AzLHOST1. Leave both hosts on.</li></ol>
+<figure><img alt="Redacted user screenshot of the Live Migration Select Node menu" src="assets/migration-menu.png"/><figcaption>User-supplied actual menu screenshot: Ubuntu is Running on AzLHOST1 and Select Node is highlighted. This is before destination selection, not a completed migration result.</figcaption></figure>
+<details><summary>If remote GUI authentication fails: use the source-node console</summary>
+<p>The recorded hosts used CredSSP. A remote runas/netonly console does not automatically solve credential delegation. If you receive0x8009030E/no credentials, use the source's local console rather than disabling Credential Guard or enabling unconstrained delegation.</p>
+<ol><li>From the LocalBox-Client Bastion desktop, Hyper-V Manager → the <strong>freshly observed Owner Node</strong> → Connect; the example below assumes that source is AzLHOST1.</li>
+<li>Sign in with an authorized node administrator, open local PowerShell from Server Core/SConfig, and verify hostname matches the current source. Do not use the forward command if ownership changed.</li>
+<li>Run the readiness checks. Execute the separate Move command only when you are ready. The assistant has not executed this demonstration command.</li></ol>
+<pre><code class="language-powershell"># ON THE SOURCE NODE CONSOLE, not a laptop or ordinary remote PowerShell session:
+hostname
+Get-ClusterNode | Format-Table Name,State
+$Role = Get-ClusterGroup -Name 'ubuntu-motion'
+$Role | Format-Table Name,OwnerNode,State
+if ($Role.State -ne 'Online' -or $Role.OwnerNode.Name -ine $env:COMPUTERNAME) {
+  throw 'Stop: run only on the current source console with the role Online.'
+}
+if ($env:COMPUTERNAME -ine 'AzLHOST1') {
+  throw 'This forward example expects AzLHOST1; review the reverse direction separately.'
+}
+if ((Get-ClusterNode -Name 'AzLHOST2').State -ne 'Up') {
+  throw 'Destination is not Up; no move is permitted.'
+}
+
+# Your explicit manual action:
+Move-ClusterVirtualMachineRole -Name 'ubuntu-motion' -Node 'AzLHOST2' -MigrationType Live
+
+Get-ClusterGroup -Name 'ubuntu-motion' | Format-Table Name,OwnerNode,State</code></pre>
+<p>In a physical deployment, use the physical/OEM remote console instead of the nested Hyper-V console. To migrate back, use AzLHOST2 as the source. This procedure does not authorize changing cluster authentication or moving unrelated workloads.</p></details>
+<h3>6.6 Interpret the result correctly</h3>
+<table><thead><tr><th>Observation</th><th>Interpretation</th></tr></thead><tbody>
+<tr><td>Owner becomes AzLHOST2; boot ID and application process start unchanged</td><td>Consistent with a memory-preserving live move; correlate with completed cluster migration and actual HTTP observations.</td></tr>
+<tr><td>Boot ID changed</td><td>The guest rebooted; do not describe that as an uninterrupted live migration.</td></tr>
+<tr><td>HTTP/tunnel reconnect but same boot ID</td><td>A connection gap is not proof of guest reboot. Record the gap and investigate it.</td></tr>
+<tr><td>Only the guest hostname/IP stayed the same</td><td>Insufficient proof of host placement or continuity. Query Owner Node and boot/application identity.</td></tr>
+<tr><td>Unexpected node failure</td><td>Cluster HA may restart a protected VM on the survivor, subject to quorum/storage/capacity. It is not live-memory migration and has downtime.</td></tr>
+<tr><td>Outer LocalBox-Client fails</td><td>Both simulated nodes and management fail together. There is no surviving physical fault domain in this lab.</td></tr>
+</tbody></table>
+<p>The observer polls approximately once per second and marks external ownership stale after15seconds. It cannot prove absolute zero downtime or substitute for application-level availability monitoring. For a new deployment without that observer, use Failover Cluster Manager/read-only cluster queries for the owner and guest commands for continuity.</p>
+<h3>6.7 Define the change window and evidence chain</h3>
+<p><strong>Inputs:</strong> a fresh cluster owner query, healthy source/destination/CSV, supported CPU compatibility and switch configuration, sufficient survivor capacity, no conflicting update/drain/repair, an approved application window, and working independent recovery. The platform operator authorizes the planned move; the application owner sets acceptable request interruption and signs off continuity; the security owner approves the management/delegation path. Your explicit GUI selection or separately executed command initiates the action. Neither this publication nor its screenshots establish a completed manual migration.</p>
+<p>Map this stage's <strong>ALZ identity</strong> decision to AD cluster permissions plus separate Entra/Arc/guest authorization; <strong>connectivity</strong> to trusted management and selected migration transport; <strong>management</strong> to change/incident/restore evidence; <strong>security/governance</strong> to audit and least privilege; <strong>automation</strong> to reproducible read-only checks; and <strong>tenant/billing/resource organization</strong> to the approved lab boundary. The <a href="architecture.html">architecture page</a> distinguishes that one-subscription lab from the proposed Local Azure Local Clusters/Applications subscriptions and central Platform services. A management-group policy or Arc connection does not carry the migration's memory traffic.</p>
+<p>Before moving, record UTC time, cluster/role identity, actual source and intended target, update/repair state, the guest boot ID, and the exact application process PID/start instant. Boot ID is meaningful only for the same guest identity across the interval; PID alone can be reused. Unchanged process-start evidence applies only to the observed process, not every dependency or request. Record HTTP sampling cadence, response/failure timestamps and timeout limits from the client and, where needed, guest-local checks. One-second sampling can miss shorter interruptions; a browser page is not continuous availability evidence.</p>
+<p>The observer's physical-owner label is trustworthy only when its producer successfully queried the actual cluster role and its timestamp is <strong>no older than15seconds</strong>. Stale, missing, future-dated, or clock-skewed samples are unknown, not the last host still owning the VM. Immediately before and after the operation, obtain a fresh authoritative cluster query and correlate it with the observer. Guest hostname/IP cannot supply physical ownership, and the separate NGINX static page cannot replace this producer.</p>
+<h3>6.8 Troubleshoot without turning a planned move into an outage</h3>
+<p>Remote cluster management uses approved RPC/cluster management paths and AD authorization; live memory transfer uses the configured Hyper-V transport, such as TCP6600 or SMB445, on trusted node networks. The actual transport depends on Network ATC configuration. Review the <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements?view=azloc-2609">complete firewall matrix</a>, not an internet-wide port opening. Changes to the ATC-managed switch, simultaneous migration counts or migration-network order must use <a href="https://learn.microsoft.com/azure/azure-local/manage/manage-network-atc?view=azloc-2609">supported Network ATC paths</a>; do not modify per-host settings as a quick fix.</p>
+<table>
+<thead><tr><th>Failure</th><th>Recovery / rollback boundary</th></tr></thead>
+<tbody>
+<tr><td>Access denied or CredSSP delegation error before submission.</td><td>Stop; use the authorized current-source local console. runas/netonly does not solve a second hop. Do not disable Credential Guard, add unconstrained delegation, or broaden tenant/cluster administrators.</td></tr>
+<tr><td>Migration fails while the original role remains Online.</td><td>Leave the workload on its confirmed source; collect operation/cluster events and repair destination capacity/network/compatibility. Do not retry concurrently or turn off a host.</td></tr>
+<tr><td>Owner changes but SSH or HTTP drops.</td><td>Record the gap, inspect guest-local health and reconnect only the client forward if appropriate. A relay reset alone proves neither reboot nor application restart.</td></tr>
+<tr><td>VM or storage becomes unhealthy.</td><td>Stop the exercise and engage the platform incident owner. Do not force another move, alter managed disks locally, or use restart as an unrecorded “repair.”</td></tr>
+</tbody>
+</table>
+<p>A reverse Live Migration is a <strong>new approved operation</strong> after fresh health checks, not automatic rollback. It does not undo application writes, recover lost requests, or restore data. If recovery is required, use the separately tested backup/restore runbook with the agreed RPO/RTO. Quorum/witness and S2D/CSV resiliency are not backups; an outer-VM failure removes the nested sources and targets together.</p>
+<p><strong>Exit gate:</strong> the requested target currently owns an Online role, migration completion is corroborated by cluster events/state, guest boot/process identity is compared within its scope, and measured HTTP gaps are disclosed. Save redacted before/after timestamps and exceptions; remove unneeded privileged sessions and loopback forwards. If any evidence is missing, label continuity or completion <strong>unverified</strong>, not successful. Production physical fault isolation and restore remain separate tests.</p>
+<h3>Sources</h3>
+<ul><li><a href="https://learn.microsoft.com/azure/azure-local/manage/virtual-machine-operations?view=azloc-2609">Supported Azure Local VM operations</a> and <a href="https://learn.microsoft.com/powershell/module/failoverclusters/move-clustervirtualmachinerole?view=windowsserver2025-ps">Move-ClusterVirtualMachineRole and remote authentication</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/azure-arc/servers/ssh-arc-overview">Arc SSH requirements</a>, <a href="https://learn.microsoft.com/azure/bastion/bastion-connect-vm-rdp-windows">Bastion authentication</a>, and <a href="https://learn.microsoft.com/azure/bastion/connect-ip-address">hybrid IP-based Bastion access</a>.</li>
+<li><a href="https://learn.microsoft.com/azure/azure-local/manage/disaster-recovery-vm-resiliency?view=azloc-2609">VM resiliency and automatic restart</a>.</li></ul>
+
+<div class="pager"><a class="button secondary" href="05-vm.html">Previous: Deploy Ubuntu and a web application</a><a class="button" href="evidence.html">Next: Screenshot evidence</a></div>
+<footer><p>Published by <a href="https://github.com/ibranibeny">ibranibeny</a>. This is a learning guide, not Microsoft product documentation or a production support statement.</p>
+<p>Official Microsoft Learn architecture images are attributed separately. Screenshots are genuine flattened copies with visible redactions. Recorded provisioning and pre-migration observations do not prove a completed manual Live Migration or zero downtime.</p>
+<p>Source: <a href="https://github.com/ibranibeny/azure-local-landing-zone-l400">dedicated guide repository</a> · <a href="downloads.html">Code, field masking, and evidence limits</a></p></footer>
+</main></div>
+</body></html>
